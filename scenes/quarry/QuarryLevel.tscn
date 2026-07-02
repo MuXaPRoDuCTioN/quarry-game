@@ -1,0 +1,126 @@
+[gd_scene format=3 uid="uid://bj705fk8hxrb7"]
+
+[ext_resource type="Script" uid="uid://dy7fvsw8kh54l" path="res://scripts/quarry/QuarryLevel/QuarryLevel.gd" id="1_emm1t"]
+[ext_resource type="Script" uid="uid://bxb7vh75sp06e" path="res://scripts/quarry/QuarryLevel/BackButton.gd" id="1_vnvd0"]
+[ext_resource type="TileSet" uid="uid://hcaeitok80xc" path="res://assets/tilesets/TestTileSet.tres" id="2_gu3et"]
+[ext_resource type="Texture2D" uid="uid://brxadnicq3db0" path="res://assets/textures/icons/Vehicles.png" id="3_f5n36"]
+[ext_resource type="Script" uid="uid://bhh38h5qagek7" path="res://scripts/quarry/QuarryLevel/CameraOnLevel.gd" id="4_dqt1b"]
+[ext_resource type="Script" uid="uid://c0anrunhtmg4f" path="res://scripts/quarry/QuarryLevel/StorageButton.gd" id="4_xnjcu"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o75gs"]
+texture = ExtResource("3_f5n36")
+texture_region_size = Vector2i(64, 64)
+0:0/0 = 0
+1:0/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_fiesl"]
+tile_size = Vector2i(64, 64)
+sources/0 = SubResource("TileSetAtlasSource_o75gs")
+
+[node name="QuarryLevel" type="Node2D" unique_id=1268584092]
+script = ExtResource("1_emm1t")
+
+[node name="FloorTileMap" type="TileMapLayer" parent="." unique_id=1954945130]
+tile_set = ExtResource("2_gu3et")
+
+[node name="VehicleTileMap" type="TileMapLayer" parent="." unique_id=1537126851]
+tile_set = SubResource("TileSet_fiesl")
+
+[node name="RubbleTileMap" type="TileMapLayer" parent="." unique_id=1813198445]
+tile_set = ExtResource("2_gu3et")
+
+[node name="WallTileMap" type="TileMapLayer" parent="." unique_id=1287468036]
+tile_set = ExtResource("2_gu3et")
+
+[node name="BorderTileMap" type="TileMapLayer" parent="." unique_id=1566303657]
+tile_set = ExtResource("2_gu3et")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1256566319]
+
+[node name="UIPanel" type="Control" parent="CanvasLayer" unique_id=1298961252 groups=["ui"]]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1152.0
+offset_bottom = 100.0
+
+[node name="Panel" type="Panel" parent="CanvasLayer/UIPanel" unique_id=1342970794 groups=["ui"]]
+layout_mode = 0
+offset_right = 1152.0
+offset_bottom = 100.0
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer/UIPanel" unique_id=877901244 groups=["ui"]]
+layout_mode = 0
+offset_left = 904.0
+offset_top = 6.0
+offset_right = 972.0
+offset_bottom = 29.0
+text = "Деньги: "
+
+[node name="BackButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=1236925062]
+layout_mode = 0
+offset_left = 21.0
+offset_top = 8.0
+offset_right = 141.0
+offset_bottom = 39.0
+text = "Назад к карте"
+script = ExtResource("1_vnvd0")
+
+[node name="StorageButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=862897679 groups=["ui"]]
+layout_mode = 0
+offset_left = 829.0
+offset_top = 9.0
+offset_right = 886.0
+offset_bottom = 40.0
+text = "Склад"
+script = ExtResource("4_xnjcu")
+
+[node name="FactoryProgressBar" type="ProgressBar" parent="CanvasLayer/UIPanel" unique_id=1507863989]
+layout_mode = 0
+offset_left = 248.0
+offset_top = 16.0
+offset_right = 448.0
+offset_bottom = 43.0
+
+[node name="FactoryLabel" type="Label" parent="CanvasLayer/UIPanel" unique_id=1804241754]
+layout_mode = 0
+offset_left = 248.0
+offset_top = 56.0
+offset_right = 288.0
+offset_bottom = 79.0
+text = "Осталось переработать: "
+
+[node name="VehiclesButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=1464985342]
+layout_mode = 0
+offset_left = 824.0
+offset_top = 48.0
+offset_right = 899.0
+offset_bottom = 79.0
+text = "Техника"
+
+[node name="PlaceGeneratorButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=682817487]
+layout_mode = 0
+offset_left = 552.0
+offset_top = 16.0
+offset_right = 742.0
+offset_bottom = 47.0
+text = "Установить генератор"
+
+[node name="StartGeneratorsButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=208796447]
+layout_mode = 0
+offset_left = 552.0
+offset_top = 56.0
+offset_right = 744.0
+offset_bottom = 87.0
+text = "Запустить генераторы"
+
+[node name="PopupContainer" type="Node2D" parent="CanvasLayer" unique_id=1079682184]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1930958798]
+position = Vector2(576, 324)
+script = ExtResource("4_dqt1b")
+
+[connection signal="pressed" from="CanvasLayer/UIPanel/BackButton" to="CanvasLayer/UIPanel/BackButton" method="_on_pressed"]
+[connection signal="pressed" from="CanvasLayer/UIPanel/StorageButton" to="CanvasLayer/UIPanel/StorageButton" method="_on_pressed"]
+[connection signal="pressed" from="CanvasLayer/UIPanel/VehiclesButton" to="." method="_on_vehicles_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/UIPanel/PlaceGeneratorButton" to="." method="_on_place_generator_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/UIPanel/StartGeneratorsButton" to="." method="_on_start_generators_button_pressed"]

@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://boaro23bminpw"]
+
+[ext_resource type="Script" uid="uid://cunt6gs1gsdwt" path="res://scripts/uis/FrequencyWindow/FrequencyWindow.gd" id="1_6ovj0"]
+[ext_resource type="Texture2D" uid="uid://cc1nvrmydrfdc" path="res://assets/textures/icons/ball.png" id="2_2ljgg"]
+
+[node name="FrequencyWindow" type="Panel" unique_id=883901432]
+offset_left = 311.0
+offset_top = 202.0
+offset_right = 842.0
+offset_bottom = 583.0
+script = ExtResource("1_6ovj0")
+
+[node name="FrequencyLabel" type="Label" parent="." unique_id=1492858689]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 12.0
+offset_right = 162.0
+offset_bottom = 35.0
+text = "Частота: "
+
+[node name="HSlider" type="HSlider" parent="." unique_id=13481119 groups=["ui"]]
+layout_mode = 0
+offset_left = 57.0
+offset_top = 300.0
+offset_right = 478.0
+offset_bottom = 316.0
+min_value = 100.0
+max_value = 1000.0
+value = 100.0
+
+[node name="ApplyButton" type="Button" parent="." unique_id=777441162 groups=["ui"]]
+layout_mode = 0
+offset_left = 357.0
+offset_top = 335.0
+offset_right = 521.0
+offset_bottom = 366.0
+text = "Проверить частоту"
+
+[node name="GraphBackground" type="ColorRect" parent="." unique_id=1592532094 groups=["ui"]]
+layout_mode = 0
+offset_left = 57.0
+offset_top = 42.0
+offset_right = 481.0
+offset_bottom = 294.0
+
+[node name="Line2D" type="Line2D" parent="." unique_id=1171926810]
+points = PackedVector2Array(150, 207)
+width = 2.0
+default_color = Color(0.31764707, 0.6784314, 0, 1)
+
+[node name="Marker" type="Sprite2D" parent="." unique_id=338536436]
+visible = false
+texture = ExtResource("2_2ljgg")
+
+[node name="AttemptsLabel" type="Label" parent="." unique_id=37412253]
+layout_mode = 0
+offset_left = 345.0
+offset_top = 15.0
+offset_right = 475.0
+offset_bottom = 38.0
+text = "Попытки: "
+
+[node name="CloseButton" type="Button" parent="." unique_id=1046390136 groups=["ui"]]
+layout_mode = 0
+offset_left = 492.0
+offset_top = 11.0
+offset_right = 516.0
+offset_bottom = 42.0
+text = "X"
+
+[node name="ConfirmButton" type="Button" parent="." unique_id=1891960131 groups=["ui"]]
+layout_mode = 0
+offset_left = 225.0
+offset_top = 334.0
+offset_right = 311.0
+offset_bottom = 365.0
+text = "Принять?"
+
+[node name="ResultLabel" type="Label" parent="." unique_id=1657306185]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 336.0
+offset_right = 114.0
+offset_bottom = 359.0
+
+[connection signal="value_changed" from="HSlider" to="." method="_on_h_slider_value_changed"]
+[connection signal="pressed" from="ApplyButton" to="." method="_on_apply_button_pressed"]
+[connection signal="pressed" from="CloseButton" to="." method="_on_close_button_pressed"]
+[connection signal="pressed" from="ConfirmButton" to="." method="_on_confirm_button_pressed"]

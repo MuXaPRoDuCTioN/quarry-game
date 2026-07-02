@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://cggl3hr0q8tuo"]
+
+[ext_resource type="Script" uid="uid://c0pd2rd8d2jt0" path="res://scripts/main/NewGameButton.gd" id="1_qi05h"]
+[ext_resource type="Script" uid="uid://ykmxripxpar2" path="res://scripts/main/ExitGameButton.gd" id="2_uort0"]
+
+[node name="MainMenu" type="Node2D" unique_id=1175325794]
+
+[node name="Background" type="ColorRect" parent="." unique_id=1251592019]
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(0.4351923, 0.43519226, 0.43519226, 1)
+
+[node name="NewGame" type="Button" parent="." unique_id=1855393105]
+offset_left = 64.0
+offset_top = 64.0
+offset_right = 320.0
+offset_bottom = 192.0
+theme_override_font_sizes/font_size = 30
+text = "Начать игру"
+script = ExtResource("1_qi05h")
+
+[node name="ExitGame" type="Button" parent="." unique_id=613460669]
+offset_left = 64.0
+offset_top = 256.0
+offset_right = 320.0
+offset_bottom = 384.0
+theme_override_font_sizes/font_size = 30
+text = "Выйти из игры"
+script = ExtResource("2_uort0")
+
+[node name="NameOfGame" type="Label" parent="." unique_id=690417281]
+offset_left = 576.0
+offset_top = 64.0
+offset_right = 680.0
+offset_bottom = 87.0
+theme_override_font_sizes/font_size = 35
+text = "Quarry Game"
+
+[connection signal="pressed" from="NewGame" to="NewGame" method="_on_pressed"]
+[connection signal="pressed" from="ExitGame" to="ExitGame" method="_on_pressed"]

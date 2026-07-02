@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://2ovmwubtlsms"]
+
+[ext_resource type="Script" uid="uid://0s4ml7i8v57r" path="res://scripts/quarry/QuarryMap/BackButton.gd" id="1_0vht2"]
+[ext_resource type="Script" uid="uid://cbg7rxvfstar2" path="res://scripts/quarry/QuarryMap/QuarryMap.gd" id="1_illjy"]
+[ext_resource type="Script" uid="uid://dv2uspjnv88ya" path="res://scripts/quarry/QuarryMap/MapCamera.gd" id="1_x6oc3"]
+
+[node name="QuarryMap" type="Node2D" unique_id=1715813391]
+script = ExtResource("1_illjy")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=466644943]
+offset_right = 1152.0
+offset_bottom = 1152.0
+color = Color(0.24313726, 0.019607844, 0, 1)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=95598823]
+
+[node name="Title" type="Label" parent="CanvasLayer" unique_id=1284384205]
+offset_left = 58.0
+offset_top = 66.0
+offset_right = 176.0
+offset_bottom = 89.0
+text = "Карта карьера"
+
+[node name="MoneyLabel" type="Label" parent="CanvasLayer" unique_id=1506919835]
+offset_left = 62.0
+offset_top = 104.0
+offset_right = 157.0
+offset_bottom = 127.0
+text = "Деньги: 100"
+
+[node name="BackButton" type="Button" parent="CanvasLayer" unique_id=619758381]
+offset_left = 25.0
+offset_top = 19.0
+offset_right = 146.0
+offset_bottom = 50.0
+text = "Назад в меню"
+script = ExtResource("1_0vht2")
+
+[node name="BuyMenu" type="Button" parent="CanvasLayer" unique_id=57870914]
+offset_left = 200.0
+offset_top = 104.0
+offset_right = 279.0
+offset_bottom = 135.0
+text = "Магазин"
+
+[node name="VehicleMenu" type="Button" parent="CanvasLayer" unique_id=462580068]
+offset_left = 200.0
+offset_top = 152.0
+offset_right = 275.0
+offset_bottom = 183.0
+text = "Техника"
+
+[node name="PopupContainer" type="Node2D" parent="CanvasLayer" unique_id=391368069]
+
+[node name="FactoryLabel" type="Label" parent="CanvasLayer" unique_id=1514305731]
+offset_left = 64.0
+offset_top = 256.0
+offset_right = 265.0
+offset_bottom = 279.0
+text = "Осталось переработать: "
+
+[node name="FactoryProgressBar" type="ProgressBar" parent="CanvasLayer" unique_id=524917125]
+offset_left = 64.0
+offset_top = 288.0
+offset_right = 256.0
+offset_bottom = 315.0
+
+[node name="LevelsContainer" type="Node2D" parent="." unique_id=1135641833]
+position = Vector2(448, 64)
+
+[node name="MapCamera" type="Camera2D" parent="." unique_id=853191850]
+position = Vector2(576, 324)
+script = ExtResource("1_x6oc3")
+
+[connection signal="pressed" from="CanvasLayer/BackButton" to="CanvasLayer/BackButton" method="_on_pressed"]
+[connection signal="pressed" from="CanvasLayer/BuyMenu" to="." method="_on_buy_menu_pressed"]
+[connection signal="pressed" from="CanvasLayer/VehicleMenu" to="." method="_on_vehicle_menu_pressed"]

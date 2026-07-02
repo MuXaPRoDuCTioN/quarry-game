@@ -1,0 +1,99 @@
+[gd_scene format=3 uid="uid://e1j7gy6nq3qc"]
+
+[ext_resource type="Script" uid="uid://shp1vi3rhh7d" path="res://scripts/uis/BuyVehicleWindow/BuyVehicleWindow.gd" id="1_vc41u"]
+
+[node name="BuyVehicleWindow" type="Panel" unique_id=2018675410]
+offset_right = 448.0
+offset_bottom = 320.0
+script = ExtResource("1_vc41u")
+
+[node name="UpperPanel" type="Panel" parent="." unique_id=1819625783]
+layout_mode = 0
+offset_right = 448.0
+offset_bottom = 64.0
+
+[node name="CloseButton" type="Button" parent="UpperPanel" unique_id=90861948 groups=["ui"]]
+layout_mode = 0
+offset_left = 360.0
+offset_top = 8.0
+offset_right = 437.0
+offset_bottom = 39.0
+text = "Закрыть"
+
+[node name="Label" type="Label" parent="UpperPanel" unique_id=386805960 groups=["ui"]]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 16.0
+offset_right = 148.0
+offset_bottom = 39.0
+text = "Покупка техники"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1281069462 groups=["ui"]]
+layout_mode = 0
+offset_top = 64.0
+offset_right = 448.0
+offset_bottom = 320.0
+
+[node name="TabContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1624464077]
+layout_mode = 2
+
+[node name="VehicleInfo" type="Panel" parent="VBoxContainer" unique_id=1473928571]
+layout_mode = 2
+
+[node name="VehicleName" type="Label" parent="VBoxContainer/VehicleInfo" unique_id=400999424]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = 96.0
+offset_bottom = 27.0
+text = "Название: "
+
+[node name="VehicleDescription" type="Label" parent="VBoxContainer/VehicleInfo" unique_id=1637702026]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 36.0
+offset_right = 94.0
+offset_bottom = 59.0
+text = "Описание:"
+
+[node name="VehicleIcon" type="TextureRect" parent="VBoxContainer/VehicleInfo" unique_id=18228791]
+layout_mode = 0
+offset_left = 296.0
+offset_top = 20.0
+offset_right = 424.0
+offset_bottom = 148.0
+
+[node name="VehicleStats" type="Label" parent="VBoxContainer/VehicleInfo" unique_id=1641836990]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 68.0
+offset_right = 62.0
+offset_bottom = 91.0
+text = "Статы:"
+
+[node name="VehicleCount" type="Label" parent="VBoxContainer/VehicleInfo" unique_id=549984723]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 132.0
+offset_right = 85.0
+offset_bottom = 155.0
+text = "Куплено: "
+
+[node name="VehiclePrice" type="Label" parent="VBoxContainer/VehicleInfo" unique_id=1974595308]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 164.0
+offset_right = 58.0
+offset_bottom = 187.0
+text = "Цена: "
+
+[node name="BuyButton" type="Button" parent="VBoxContainer/VehicleInfo" unique_id=446031239]
+layout_mode = 0
+offset_left = 368.0
+offset_top = 172.0
+offset_right = 434.0
+offset_bottom = 203.0
+text = "Купить"
+
+[connection signal="pressed" from="UpperPanel/CloseButton" to="." method="_on_close_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/VehicleInfo/BuyButton" to="." method="_on_buy_button_pressed"]

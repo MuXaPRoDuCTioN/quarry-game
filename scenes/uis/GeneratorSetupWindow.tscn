@@ -1,0 +1,85 @@
+[gd_scene format=3 uid="uid://eyx75edt4exx"]
+
+[ext_resource type="Script" uid="uid://di3vrdy80oyt0" path="res://scripts/uis/GeneratorSetupWindow/GeneratorSetupWindow.gd" id="1_o1c2j"]
+
+[node name="GeneratorSetupWindow" type="Panel" unique_id=2082906276]
+offset_right = 448.0
+offset_bottom = 256.0
+script = ExtResource("1_o1c2j")
+
+[node name="UpperPanel" type="Panel" parent="." unique_id=1431842586]
+layout_mode = 0
+offset_right = 448.0
+offset_bottom = 64.0
+
+[node name="Label" type="Label" parent="UpperPanel" unique_id=1870222043]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 200.0
+offset_bottom = 39.0
+text = "Настройка генератора"
+
+[node name="CloseButton" type="Button" parent="UpperPanel" unique_id=458501081]
+layout_mode = 0
+offset_left = 352.0
+offset_top = 16.0
+offset_right = 429.0
+offset_bottom = 47.0
+text = "Закрыть"
+
+[node name="FrequencyLabel" type="Label" parent="." unique_id=26787220]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 72.0
+offset_right = 89.0
+offset_bottom = 95.0
+text = "Частота: "
+
+[node name="FrequencySlider" type="HSlider" parent="." unique_id=429971726]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 104.0
+offset_right = 256.0
+offset_bottom = 120.0
+min_value = 100.0
+max_value = 1000.0
+step = 10.0
+value = 500.0
+
+[node name="DirectionLabel" type="Label" parent="." unique_id=1568978668]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 128.0
+offset_right = 182.0
+offset_bottom = 151.0
+text = "Направление: вниз"
+
+[node name="DirectionSelector" type="OptionButton" parent="." unique_id=923908452]
+layout_mode = 0
+offset_left = 144.0
+offset_top = 160.0
+offset_right = 176.0
+offset_bottom = 180.0
+item_count = 4
+popup/item_0/text = "Вверх"
+popup/item_0/id = 0
+popup/item_1/text = "Вправо"
+popup/item_1/id = 1
+popup/item_2/text = "Вниз"
+popup/item_2/id = 2
+popup/item_3/text = "Вверх"
+popup/item_3/id = 3
+
+[node name="ConfirmButton" type="Button" parent="." unique_id=354767786]
+layout_mode = 0
+offset_left = 304.0
+offset_top = 208.0
+offset_right = 407.0
+offset_bottom = 239.0
+text = "Установить"
+
+[connection signal="pressed" from="UpperPanel/CloseButton" to="." method="_on_close_button_pressed"]
+[connection signal="value_changed" from="FrequencySlider" to="." method="_on_frequency_slider_value_changed"]
+[connection signal="item_selected" from="DirectionSelector" to="." method="_on_direction_selector_item_selected"]
+[connection signal="pressed" from="ConfirmButton" to="." method="_on_confirm_button_pressed"]

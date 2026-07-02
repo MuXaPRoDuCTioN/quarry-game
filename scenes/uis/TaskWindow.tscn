@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://ca4t6kytk2dcr"]
+
+[ext_resource type="Script" uid="uid://w5wmocawbkpd" path="res://scripts/uis/TaskWindow/TaskWindow.gd" id="1_ku45i"]
+
+[node name="TaskWindow" type="Panel" unique_id=529042469]
+offset_right = 384.0
+offset_bottom = 192.0
+script = ExtResource("1_ku45i")
+
+[node name="StaticControl" type="Control" parent="." unique_id=1883741964]
+anchors_preset = 0
+offset_right = 384.0
+offset_bottom = 80.0
+
+[node name="Label" type="Label" parent="StaticControl" unique_id=1320801003]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 153.0
+offset_bottom = 31.0
+text = "Выберите задачу:"
+
+[node name="ConfirmButton" type="Button" parent="StaticControl" unique_id=2032548458]
+layout_mode = 0
+offset_left = 208.0
+offset_top = 16.0
+offset_right = 286.0
+offset_bottom = 47.0
+text = "Принять"
+
+[node name="CancleButton" type="Button" parent="StaticControl" unique_id=1095155430]
+layout_mode = 0
+offset_left = 296.0
+offset_top = 16.0
+offset_right = 367.0
+offset_bottom = 47.0
+text = "Отмена"
+
+[node name="TaskSelector" type="OptionButton" parent="StaticControl" unique_id=1532669837]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 48.0
+offset_right = 48.0
+offset_bottom = 68.0
+
+[node name="DynamicControl" type="Control" parent="." unique_id=2124964891]
+anchors_preset = 0
+offset_top = 80.0
+offset_right = 384.0
+offset_bottom = 192.0
+
+[connection signal="pressed" from="StaticControl/ConfirmButton" to="." method="_on_confirm_button_pressed"]
+[connection signal="pressed" from="StaticControl/CancleButton" to="." method="_on_cancle_button_pressed"]
+[connection signal="item_selected" from="StaticControl/TaskSelector" to="." method="_on_task_selector_item_selected"]
