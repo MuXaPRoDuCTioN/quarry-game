@@ -43,11 +43,6 @@ offset_top = 42.0
 offset_right = 481.0
 offset_bottom = 294.0
 
-[node name="Line2D" type="Line2D" parent="." unique_id=1171926810]
-points = PackedVector2Array(150, 207)
-width = 2.0
-default_color = Color(0.31764707, 0.6784314, 0, 1)
-
 [node name="Marker" type="Sprite2D" parent="." unique_id=338536436]
 visible = false
 texture = ExtResource("2_2ljgg")

@@ -4,12 +4,12 @@ extends Panel
 signal frequency_selected(generator_id: int, frequency: int)
 signal direction_selected(generator_id: int, direction: int)
 signal window_closed
-signal generator_cancelled(generator_id: int)  # новый сигнал для отмены
+signal generator_cancelled(generator_id: int)
 
 
 var generator_id: int = -1
-var selected_frequency: int = 500
-var selected_direction: int = 0  # 0-вверх, 1-вправо, 2-вниз, 3-влево
+var selected_frequency: int = 250
+var selected_direction: int = 0
 var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
 var drag_start
@@ -18,25 +18,24 @@ var drag_start
 func setup(gen_id: int):
 	generator_id = gen_id
 	
-	# Устанавливаем значения по умолчанию
-	selected_frequency = 500
+	selected_frequency = 250
 	selected_direction = 0
 	
-	# Настраиваем слайдер
-	$FrequencySlider.value = 500
+	# Настраиваем слайдер (мин 10, макс 500)
+	$FrequencySlider.min_value = 10
+	$FrequencySlider.max_value = 500
+	$FrequencySlider.value = 250
 	
-	# Настраиваем выпадающий список с выбором направления
 	$DirectionSelector.clear()
 	$DirectionSelector.add_item("Вверх ↑")
 	$DirectionSelector.add_item("Вправо →")
 	$DirectionSelector.add_item("Вниз ↓")
 	$DirectionSelector.add_item("Влево ←")
-	$DirectionSelector.selected = 0  # Выбираем "Вверх" по умолчанию
+	$DirectionSelector.selected = 0
 	
 	update_labels()
 	center_window()
 	
-	# Настраиваем перемещение только по верхней панели
 	var upper_panel = $UpperPanel
 	if not upper_panel.mouse_entered.is_connected(_on_upper_panel_mouse_entered):
 		upper_panel.mouse_entered.connect(_on_upper_panel_mouse_entered)
@@ -58,7 +57,6 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				# Проверяем, что клик был по верхней панели
 				var mouse_pos = get_global_mouse_position()
 				var upper_panel = $UpperPanel
 				if upper_panel.get_global_rect().has_point(mouse_pos):
@@ -94,7 +92,6 @@ func _on_direction_selector_item_selected(index: int):
 
 
 func _on_confirm_button_pressed():
-	# Принять - генератор остаётся с настроенными параметрами
 	var direction = $DirectionSelector.selected
 	emit_signal("direction_selected", generator_id, direction)
 	emit_signal("frequency_selected", generator_id, selected_frequency)
@@ -103,14 +100,12 @@ func _on_confirm_button_pressed():
 
 
 func _on_close_button_pressed():
-	# Закрыть - генератор удаляется с уровня
 	emit_signal("generator_cancelled", generator_id)
 	emit_signal("window_closed")
 	queue_free()
 
 
 func _on_upper_panel_mouse_entered():
-	# Меняем курсор при наведении на верхнюю панель
 	Input.set_default_cursor_shape(Input.CURSOR_DRAG)
 
 

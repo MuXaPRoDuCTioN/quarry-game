@@ -85,10 +85,12 @@ func _process(delta: float) -> void:
 				truck.progress = 0.0
 				
 				var ore_amount = truck.get("ore", 0)
-				if ore_amount > 0:
-					Global.add_to_factory_queue(ore_amount)  # Используем новую функцию
+				var ore_type = truck.get("ore_type", "")
+				if ore_amount > 0 and ore_type != "":
+					Global.add_to_factory_queue(ore_amount, ore_type)
 					truck["ore"] = 0
-					print("Грузовик #", truck.id, " разгрузил ", ore_amount, " кг на фабрике")
+					truck["ore_type"] = ""
+					print("Грузовик #", truck.id, " разгрузил ", ore_amount, " кг ", ore_type, " на фабрике")
 				
 				truck["location"] = "parking"
 				truck["location_id"] = null

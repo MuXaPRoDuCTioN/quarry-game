@@ -16,9 +16,9 @@ offset_bottom = 48.0
 layout_mode = 0
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 201.0
-offset_bottom = 31.0
-text = "Транспорт по владении"
+offset_right = 376.0
+offset_bottom = 32.0
+text = "Окно управления техникой"
 
 [node name="CloseButton" type="Button" parent="UpperPanel" unique_id=1482445650 groups=["ui"]]
 layout_mode = 0

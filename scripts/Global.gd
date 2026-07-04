@@ -10,9 +10,10 @@ var vehicle_id_counter = 0
 var is_on_level = false
 
 
-var rubbles = []  # [{cell: Vector2i, weight: int, remaining: int}]
+var rubbles = []  # [{cell: Vector2i, weight: int, remaining: int, rock_type_id: int}]
 var factory_queue_weight = 0
-var factory_processing = null
+var factory_queue = []  # [{"weight": int, "ore_type": String}]
+var factory_processing = null  # {"weight": int, "progress": float, "ore_type": String}
 var FACTORY_PROCESSING_SPEED = 2.0
 
 
@@ -20,6 +21,31 @@ var storage = {
 	"gold": 0,
 	"iron": 0,
 	"coal": 0
+}
+
+
+# Данные о руде в зависимости от породы кучи
+var rubble_ore_data = {
+	0: {  
+		"coal": 1.0,
+		"iron": 0.0,
+		"gold": 0.0
+	},
+	1: {  
+		"coal": 0.7,
+		"iron": 0.3,
+		"gold": 0.0
+	},
+	2: { 
+		"coal": 0.25,
+		"iron": 0.7,
+		"gold": 0.05
+	},
+	3: { 
+		"coal": 0.0,
+		"iron": 0.5,
+		"gold": 0.5
+	}
 }
 
 
@@ -41,6 +67,42 @@ var ore_data = {
 		"price": 25,
 		"atlas_region": Rect2(128, 0, 64, 64),
 		"icon": null
+	}
+}
+
+
+var rock_types = {
+	0: {
+		"name": "Известняк",
+		"min_freq": 100,
+		"max_freq": 600,
+		"color": Color(0.7, 0.7, 0.6),
+		"weight_multiplier": 1.0,
+		"min_level": 1
+	},
+	1: {
+		"name": "Кварцит",
+		"min_freq": 600,
+		"max_freq": 1300,
+		"color": Color(0.9, 0.8, 0.7),
+		"weight_multiplier": 1.3,
+		"min_level": 3
+	},
+	2: {
+		"name": "Гематит",
+		"min_freq": 1300,
+		"max_freq": 2000,
+		"color": Color(0.6, 0.3, 0.2),
+		"weight_multiplier": 1.6,
+		"min_level": 5
+	},
+	3: {
+		"name": "Кимберлит",
+		"min_freq": 2000,
+		"max_freq": 3000,
+		"color": Color(0.3, 0.5, 0.8),
+		"weight_multiplier": 2.0,
+		"min_level": 8
 	}
 }
 
@@ -81,7 +143,6 @@ var vehicles = {
 
 
 func _ready() -> void:
-	# Инициализируем иконки только если их ещё нет
 	if ore_data["gold"]["icon"] == null:
 		for ore_id in ore_data:
 			var data = ore_data[ore_id]
@@ -105,48 +166,28 @@ func _process(delta: float) -> void:
 
 
 func reset_game():
-	# Сбрасываем деньги
 	money = 1000
-	
-	# Очищаем купленные уровни
 	purchased_levels.clear()
-	
-	# Очищаем состояние уровней
 	level_state.clear()
-	
-	# Сбрасываем счётчик ID транспорта
 	vehicle_id_counter = 0
-	
-	# Очищаем все кучи
 	rubbles.clear()
-	
-	# Сбрасываем фабрику
+	factory_queue.clear()
 	factory_queue_weight = 0
 	factory_processing = null
-	
-	# Очищаем склад
 	storage = {
 		"gold": 0,
 		"iron": 0,
 		"coal": 0
 	}
-	
-	# Очищаем весь транспорт
 	vehicles = {
 		"trucks": [],
 		"excavators": []
 	}
-	
-	# Сбрасываем прогресс копания
 	digging_progress.clear()
-	
-	# Сбрасываем флаг нахождения на уровне
 	is_on_level = false
 	
 	print("=== НОВАЯ ИГРА ГОТОВА ===")
 	print("Деньги: ", money)
-	print("Транспорт: 0")
-	print("Уровни: 0")
 
 
 func add_ore(ore_id: String, amount: int):
@@ -175,6 +216,7 @@ func buy_vehicle(type: String) -> bool:
 				"task": null,
 				"progress": 0.0,
 				"ore": 0,
+				"ore_type": "",
 				"capacity": vehicle_templates[type]["capacity"],
 				"location": "parking",   
 				"location_id": null         
@@ -190,32 +232,48 @@ func buy_vehicle(type: String) -> bool:
 				"location": "parking",   
 				"location_id": null,
 				"is_full": false,
-				"ore_amount": 0
+				"ore_amount": 0,
+				"ore_type": ""
 			})
 		return true
 	return false
 
 
-func add_to_factory_queue(weight: int):
+func add_to_factory_queue(weight: int, ore_type: String):
+	factory_queue.append({
+		"weight": weight,
+		"ore_type": ore_type
+	})
 	factory_queue_weight += weight
-	print("Добавлено ", weight, " кг земли в очередь фабрики. Всего в очереди: ", factory_queue_weight)
+	print("Добавлено ", weight, " кг ", ore_type, " в очередь фабрики. Всего в очереди: ", factory_queue_weight)
 
 
 func process_factory(delta):
-	if factory_processing == null and factory_queue_weight > 0:
-		var weight = min(10, factory_queue_weight)
+	# Если ничего не обрабатывается и есть очередь
+	if factory_processing == null and factory_queue.size() > 0:
+		var item = factory_queue[0]  # смотрим первый элемент
+		var weight = min(10, item["weight"])  # берём максимум 10 кг
+		
+		# Уменьшаем вес в очереди
+		if item["weight"] <= 10:
+			factory_queue.pop_front()  # удаляем полностью
+		else:
+			item["weight"] -= 10  # уменьшаем вес
+		
 		factory_queue_weight -= weight
+		
 		factory_processing = {
 			"weight": weight,
-			"progress": 0.0
+			"progress": 0.0,
+			"ore_type": item["ore_type"]
 		}
-		print("Начата переработка ", weight, " кг. Осталось в очереди: ", factory_queue_weight)
+		print("Начата переработка ", weight, " кг ", item["ore_type"], ". Осталось в очереди: ", factory_queue_weight)
 	
+	# Обрабатываем текущую партию
 	if factory_processing != null:
 		factory_processing["progress"] += delta * FACTORY_PROCESSING_SPEED
 		if factory_processing["progress"] >= factory_processing["weight"]:
-			var ore_types = ["gold", "iron", "coal"]
-			var ore_type = ore_types[randi_range(0, 2)]
+			var ore_type = factory_processing["ore_type"]
 			var amount = 1 + randi_range(0, 2)
 			storage[ore_type] += amount
 			print("Переработано! Получено ", amount, " ", ore_type)

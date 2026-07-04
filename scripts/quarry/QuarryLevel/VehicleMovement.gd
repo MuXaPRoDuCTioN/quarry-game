@@ -44,12 +44,10 @@ func update(delta: float):
 
 
 func move_vehicle(vehicle_id: int, start_cell: Vector2i, target_cell: Vector2i, vehicle_type: String):
-	# Проверяем, не движется ли уже этот транспорт
 	if moving_vehicles.has(vehicle_id):
 		print("Транспорт #", vehicle_id, " уже движется!")
 		return false
 	
-	# Проверяем, не занята ли целевая клетка другим движущимся транспортом
 	for moving_id in moving_vehicles:
 		var data = moving_vehicles[moving_id]
 		if data["path"].size() > 0:
@@ -107,6 +105,14 @@ func find_path(start: Vector2i, target: Vector2i, vehicle_id: int = -1):
 	
 	var directions = [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]
 	
+	# Получаем список клеток с генераторами
+	var generator_cells = []
+	var level_data = Global.level_state.get(Global.current_level)
+	if level_data.has("generators"):
+		for gen_data in level_data.get("generators", []):
+			var cell = Vector2i(gen_data.get("cell", [0, 0])[0], gen_data.get("cell", [0, 0])[1])
+			generator_cells.append(cell)
+	
 	while queue.size() > 0:
 		var current = queue.pop_front()
 		if current == target:
@@ -133,11 +139,14 @@ func find_path(start: Vector2i, target: Vector2i, vehicle_id: int = -1):
 				continue
 			if rubbles_tile_map.get_cell_source_id(neighbor) != -1:
 				continue
+			
+			if generator_cells.has(neighbor):
+				continue
+			
 			if vehicles_tile_map.get_cell_source_id(neighbor) != -1:
-				# Проверяем, не стоит ли там этот же транспорт
-				var level_data = Global.level_state[Global.current_level]
+				var level_data_check = Global.level_state[Global.current_level]
 				var blocked = false
-				for truck in level_data.get("trucks", []):
+				for truck in level_data_check.get("trucks", []):
 					if truck["id"] == vehicle_id:
 						continue
 					var pos = Vector2i(truck["cell"][0], truck["cell"][1])
@@ -145,7 +154,7 @@ func find_path(start: Vector2i, target: Vector2i, vehicle_id: int = -1):
 						blocked = true
 						break
 				if not blocked:
-					for ex in level_data.get("excavators", []):
+					for ex in level_data_check.get("excavators", []):
 						if ex["id"] == vehicle_id:
 							continue
 						var pos = Vector2i(ex["cell"][0], ex["cell"][1])
@@ -182,6 +191,14 @@ func find_free_cell_near(target: Vector2i, from: Vector2i) -> Vector2i:
 	var best_cell = null
 	var best_dist = 9999
 	
+	# Получаем список клеток с генераторами
+	var generator_cells = []
+	var level_data = Global.level_state.get(Global.current_level)
+	if level_data.has("generators"):
+		for gen_data in level_data.get("generators", []):
+			var cell = Vector2i(gen_data.get("cell", [0, 0])[0], gen_data.get("cell", [0, 0])[1])
+			generator_cells.append(cell)
+	
 	for dir in directions:
 		var neighbor = target + dir
 		
@@ -199,6 +216,9 @@ func find_free_cell_near(target: Vector2i, from: Vector2i) -> Vector2i:
 		if rubbles_tile_map.get_cell_source_id(neighbor) != -1:
 			continue
 		if vehicles_tile_map.get_cell_source_id(neighbor) != -1:
+			continue
+		
+		if generator_cells.has(neighbor):
 			continue
 		
 		var dist = abs(neighbor.x - from.x) + abs(neighbor.y - from.y)

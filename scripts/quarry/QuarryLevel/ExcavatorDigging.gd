@@ -74,10 +74,27 @@ func _process(delta: float) -> void:
 			Global.rubbles.remove_at(current_target["rubble_index"])
 			print("Куча исчерпана и удалена! Осталось куч: ", Global.rubbles.size())
 		
-		_set_excavator_full(vehicle_id, 10)
+		# Получаем тип руды из кучи
+		var rock_type_id = rubble.get("rock_type_id", 0)
+		var ore_type = get_ore_from_rubble(rock_type_id)
+		
+		_set_excavator_full(vehicle_id, 10, ore_type)
 		
 		emit_signal("digging_completed", level_to_update, vehicle_id, rubble_cell)
 		stop_digging()
+
+
+func get_ore_from_rubble(rock_type_id: int) -> String:
+	var ore_data = Global.rubble_ore_data.get(rock_type_id, Global.rubble_ore_data[0])
+	var rand = randf()
+	var cumulative = 0.0
+	
+	for ore_type in ore_data:
+		cumulative += ore_data[ore_type]
+		if rand <= cumulative:
+			return ore_type
+	
+	return "coal"
 
 
 func get_excavator_cell(vehicle_id: int):
@@ -88,13 +105,14 @@ func get_excavator_cell(vehicle_id: int):
 	return null
 
 
-func _set_excavator_full(vehicle_id: int, amount: int):
+func _set_excavator_full(vehicle_id: int, amount: int, ore_type: String):
 	for ex in Global.vehicles["excavators"]:
 		if ex["id"] == vehicle_id:
 			ex["is_full"] = true
 			ex["ore_amount"] = amount
+			ex["ore_type"] = ore_type
 			ex["status"] = "idle"
-			print("Экскаватор #", vehicle_id, " полный! (", amount, " кг земли)")
+			print("Экскаватор #", vehicle_id, " полный! (", amount, " кг ", ore_type, ")")
 			break
 
 

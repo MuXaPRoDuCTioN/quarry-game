@@ -8,8 +8,8 @@ signal generator_destroyed(generator_id: int)
 
 var generator_id: int
 var cell: Vector2i
-var frequency: int = 0
-var direction: int = 0  # 0-вверх, 1-вправо, 2-вниз, 3-влево
+var frequency: int = 250
+var direction: int = 0
 var is_placed: bool = false
 var sprite: Sprite2D
 var direction_indicator: Sprite2D
@@ -17,12 +17,11 @@ var direction_indicator: Sprite2D
 
 func _ready():
 	sprite = Sprite2D.new()
-	sprite.texture = load("res://assets/textures/icons/generator.png")  # нужно создать текстуру
+	sprite.texture = load("res://assets/textures/icons/generator.png")
 	sprite.centered = true
 	sprite.position = cell * 64 + Vector2i(32, 32)
 	add_child(sprite)
 	
-	# Индикатор направления
 	direction_indicator = Sprite2D.new()
 	direction_indicator.centered = true
 	var arrow_image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
@@ -36,24 +35,23 @@ func _ready():
 func update_direction_indicator():
 	if direction_indicator == null:
 		return
-	var offset = Vector2i(32, 32)
 	match direction:
-		0: # вверх
+		0:
 			direction_indicator.position = cell * 64 + Vector2i(32, -16)
 			direction_indicator.rotation = 0
-		1: # вправо
+		1:
 			direction_indicator.position = cell * 64 + Vector2i(80, 32)
 			direction_indicator.rotation = deg_to_rad(90)
-		2: # вниз
+		2:
 			direction_indicator.position = cell * 64 + Vector2i(32, 80)
 			direction_indicator.rotation = deg_to_rad(180)
-		3: # влево
+		3:
 			direction_indicator.position = cell * 64 + Vector2i(-16, 32)
 			direction_indicator.rotation = deg_to_rad(270)
 
 
 func set_frequency(freq: int):
-	frequency = freq
+	frequency = clamp(freq, 10, 500)
 
 
 func set_direction(dir: int):
@@ -62,14 +60,12 @@ func set_direction(dir: int):
 
 
 func get_wave_intersection(other_generator: FrequencyGenerator) -> Array:
-	# Возвращает клетки, где пересекаются волны двух генераторов
 	var intersection = []
 	var start1 = cell
 	var start2 = other_generator.cell
 	var dir1 = direction
 	var dir2 = other_generator.direction
 	
-	# Проверяем пересечение лучей
 	var ray1 = get_ray_cells(start1, dir1)
 	var ray2 = get_ray_cells(start2, dir2)
 	
@@ -84,7 +80,7 @@ func get_wave_intersection(other_generator: FrequencyGenerator) -> Array:
 func get_ray_cells(start: Vector2i, dir: int) -> Array:
 	var cells = []
 	var pos = start
-	var max_distance = 10  # максимальная длина волны
+	var max_distance = 10
 	
 	for i in range(1, max_distance + 1):
 		match dir:

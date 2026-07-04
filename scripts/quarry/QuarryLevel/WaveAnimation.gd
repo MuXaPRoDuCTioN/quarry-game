@@ -1,6 +1,6 @@
-# WaveAnimation.gd
 class_name WaveAnimation
 extends Node2D
+
 
 signal animation_finished(result: Dictionary)
 
@@ -17,7 +17,6 @@ var max_steps: int = 20
 var wall_map: TileMapLayer = null
 var floor_map: TileMapLayer = null
 var level_size: Vector2i = Vector2i(20, 20)
-var processed_intersections: Array = []  # клетки, где уже был резонанс
 
 
 func setup(generators: Array, targets: Dictionary):
@@ -27,7 +26,6 @@ func setup(generators: Array, targets: Dictionary):
 	current_step = 0
 	resonance_effects.clear()
 	triggered_pairs.clear()
-	processed_intersections.clear()
 	
 	# Получаем ссылки на карты
 	var level = get_tree().current_scene
@@ -189,20 +187,18 @@ func sort_cells_for_polygon(cells: Array, start: Vector2i) -> Array:
 
 
 func check_intersections_at_step(step: int):
+	var pair_overlaps: Array = []
+	
 	for i in range(generators_data.size()):
 		for j in range(i + 1, generators_data.size()):
 			var pair_key = str(i) + "_" + str(j)
-			if triggered_pairs.has(pair_key):
-				continue
 			
 			var gen1 = generators_data[i]
 			var gen2 = generators_data[j]
 			
-			# Проверяем, что у генераторов есть частоты
 			if gen1.frequency == 0 or gen2.frequency == 0:
 				continue
 			
-			# Получаем клетки на текущем шаге для каждого генератора
 			var cells1 = get_cells_up_to_step(wave_polygons[i].cone_cells, gen1.cell, step)
 			var cells2 = get_cells_up_to_step(wave_polygons[j].cone_cells, gen2.cell, step)
 			
@@ -214,75 +210,150 @@ func check_intersections_at_step(step: int):
 			if overlap.is_empty():
 				continue
 			
-			# Отмечаем пару как обработанную
-			triggered_pairs.append(pair_key)
-			
-			# Выбираем первую клетку пересечения для проверки области
-			var center_cell = overlap[0]
-			
-			# Проверяем область 2x2 вокруг центра
-			var checked_cells = []
-			for dx in range(2):
-				for dy in range(2):
-					var check_cell = center_cell + Vector2i(dx, dy)
-					checked_cells.append(check_cell)
-			
-			# Проверяем каждую клетку в области
-			var target_found = false
-			var target_cell = null
 			var combined_freq = gen1.frequency + gen2.frequency
+			pair_overlaps.append({"key": pair_key, "cells": overlap, "freq": combined_freq})
 			
-			for check_cell in checked_cells:
-				# Проверяем, есть ли стена с целевой частотой
-				if wall_targets.has(check_cell):
-					var target_freq = wall_targets[check_cell]
-					# Проверяем совпадение с погрешностью ±100
+			if not triggered_pairs.has(pair_key):
+				triggered_pairs.append(pair_key)
+				var geo = compute_zone_geometry(overlap)
+				var is_target = zone_has_target(overlap, combined_freq)
+				create_resonance_effect(geo.center_px, geo.extent_cells, is_target, 1)
+			
+			# СОБИРАЕМ ВСЕ СТЕНЫ ДЛЯ РАЗРУШЕНИЯ
+			for cell in overlap:
+				if wall_targets.has(cell):
+					var target_freq = wall_targets[cell]
 					if abs(combined_freq - target_freq) <= 100:
-						target_found = true
-						target_cell = check_cell
-						break
-			
-			# Если нашли целевую стену - разрушаем
-			if target_found and target_cell != null:
-				var already_destroyed = false
-				for wall in destroyed_walls:
-					if wall.cell == target_cell:
-						already_destroyed = true
-						break
-				
-				if not already_destroyed:
-					destroyed_walls.append({
-						"cell": target_cell,
-						"frequency": combined_freq,
-						"accuracy": 1.0
-					})
-					# Создаём жёлтый эффект резонанса
-					create_resonance_effect(target_cell, true)
-			else:
-				# Если стены нет или частота не совпала - оранжевый эффект
-				# Проверяем, не было ли уже эффекта в этой клетке
-				if not (center_cell in processed_intersections):
-					processed_intersections.append(center_cell)
-					create_resonance_effect(center_cell, false)
-
-
-func create_resonance_effect(cell: Vector2i, is_target: bool):
-	# Проверяем, нет ли уже эффекта в этой клетке
-	for effect in resonance_effects:
-		if effect.cell == cell:
-			return
+						var already_destroyed = false
+						for wall in destroyed_walls:
+							if wall.cell == cell:
+								already_destroyed = true
+								break
+						
+						if not already_destroyed:
+							destroyed_walls.append({
+								"cell": cell,
+								"frequency": combined_freq,
+								"accuracy": 1.0
+							})
 	
+	for a in range(pair_overlaps.size()):
+		for b in range(a + 1, pair_overlaps.size()):
+			var zone_a = pair_overlaps[a]
+			var zone_b = pair_overlaps[b]
+			var meta_key = "meta_" + zone_a.key + "_" + zone_b.key
+			
+			if triggered_pairs.has(meta_key):
+				continue
+			
+			var meta_overlap = []
+			for cell in zone_a.cells:
+				if zone_b.cells.has(cell):
+					meta_overlap.append(cell)
+			
+			if meta_overlap.is_empty():
+				continue
+			
+			triggered_pairs.append(meta_key)
+			
+			var meta_freq = (zone_a.freq + zone_b.freq) * 3.0
+			var geo = compute_zone_geometry(meta_overlap)
+			var is_target = zone_has_target(meta_overlap, meta_freq)
+			
+			create_resonance_effect(geo.center_px, geo.extent_cells, is_target, 2)
+			
+			for cell in meta_overlap:
+				if wall_targets.has(cell):
+					var target_freq = wall_targets[cell]
+					if abs(meta_freq - target_freq) <= 100:
+						var already_destroyed = false
+						for wall in destroyed_walls:
+							if wall.cell == cell:
+								already_destroyed = true
+								break
+						
+						if not already_destroyed:
+							destroyed_walls.append({
+								"cell": cell,
+								"frequency": meta_freq,
+								"accuracy": 1.0
+							})
+
+
+# Центр (в пикселях) и габарит (в клетках) области, для позиционирования/размера круга
+func compute_zone_geometry(cells: Array) -> Dictionary:
+	var min_x = cells[0].x
+	var max_x = cells[0].x
+	var min_y = cells[0].y
+	var max_y = cells[0].y
+	var sum_x = 0
+	var sum_y = 0
+	for cell in cells:
+		min_x = min(min_x, cell.x)
+		max_x = max(max_x, cell.x)
+		min_y = min(min_y, cell.y)
+		max_y = max(max_y, cell.y)
+		sum_x += cell.x
+		sum_y += cell.y
+	
+	var center_px = Vector2(
+		(float(sum_x) / cells.size() + 0.5) * 64.0,
+		(float(sum_y) / cells.size() + 0.5) * 64.0
+	)
+	var extent_cells = max(max_x - min_x + 1, max_y - min_y + 1)
+	return {"center_px": center_px, "extent_cells": extent_cells}
+
+
+func zone_has_target(cells: Array, freq: float) -> bool:
+	for cell in cells:
+		if wall_targets.has(cell) and abs(freq - wall_targets[cell]) <= 100:
+			return true
+	return false
+
+
+func try_destroy_walls_in_zone(cells: Array, freq: float) -> void:
+	for cell in cells:
+		if not wall_targets.has(cell):
+			continue
+		
+		var target_freq = wall_targets[cell]
+		if abs(freq - target_freq) > 100:
+			continue
+		
+		var already_destroyed = false
+		for wall in destroyed_walls:
+			if wall.cell == cell:
+				already_destroyed = true
+				break
+		
+		if not already_destroyed:
+			destroyed_walls.append({
+				"cell": cell,
+				"frequency": freq,
+				"accuracy": 1.0
+			})
+
+
+func create_resonance_effect(center_px: Vector2, extent_cells: int, is_target: bool, resonance_level: int = 1):
 	# Создаём пульсирующий круг
 	var circle = Sprite2D.new()
 	circle.centered = true
-	circle.z_index = 22
+	circle.z_index = 22 if resonance_level < 2 else 23
 	
-	# Создаём текстуру круга
+	# Базовая текстура рисуется всегда одного разрешения (56px), а нужный
+	# итоговый диаметр достигается масштабом (scale) в animate_resonance_effect —
+	# это и позволяет кругу "подстраиваться" под размер области пересечения.
 	var size = 56
 	var image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))
 	
-	var color = Color(1, 1, 0, 0.9) if is_target else Color(1, 0.5, 0, 0.7)
+	# Обычный резонанс — жёлтый/оранжевый. Резонанс резонансов (2-го порядка) —
+	# малиновый/красный, чтобы визуально отличался и читался как "сильнее".
+	var color
+	if resonance_level >= 2:
+		color = Color(1, 0.1, 0.9, 0.95) if is_target else Color(1, 0, 0.2, 0.75)
+	else:
+		color = Color(1, 1, 0, 0.9) if is_target else Color(1, 0.5, 0, 0.7)
 	
 	# Рисуем круг
 	for x in range(size):
@@ -305,13 +376,18 @@ func create_resonance_effect(cell: Vector2i, is_target: bool):
 	
 	var texture = ImageTexture.create_from_image(image)
 	circle.texture = texture
-	circle.position = cell * 64
+	circle.position = center_px
 	add_child(circle)
+	
+	# Диаметр в пикселях, который должен покрыть область пересечения
+	# (с небольшим запасом, чтобы явно охватывать крайние клетки).
+	var target_diameter_px = max(extent_cells * 64.0 * 1.25, 90.0)
+	var max_scale = target_diameter_px / float(size)
 	
 	# Сохраняем для анимации
 	var effect_data = {
 		"circle": circle,
-		"cell": cell,
+		"max_scale": max_scale,
 		"timer": 0.0,
 		"max_timer": 1.25,
 		"is_target": is_target
@@ -324,8 +400,8 @@ func create_resonance_effect(cell: Vector2i, is_target: bool):
 
 func animate_resonance_effect(effect_data: Dictionary):
 	var circle = effect_data.circle
-	var start_scale = 0.5
-	var max_scale = 1.7
+	var max_scale = effect_data.max_scale
+	var start_scale = max_scale * 0.3
 	var grow_duration = 0.25
 	var hold_duration = 0.6
 	var fade_duration = 0.4
