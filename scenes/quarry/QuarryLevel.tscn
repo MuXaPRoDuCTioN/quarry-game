@@ -5,7 +5,11 @@
 [ext_resource type="TileSet" uid="uid://hcaeitok80xc" path="res://assets/tilesets/TestTileSet.tres" id="2_gu3et"]
 [ext_resource type="Texture2D" uid="uid://brxadnicq3db0" path="res://assets/textures/icons/Vehicles.png" id="3_f5n36"]
 [ext_resource type="Script" uid="uid://bhh38h5qagek7" path="res://scripts/quarry/QuarryLevel/CameraOnLevel.gd" id="4_dqt1b"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="4_o75gs"]
 [ext_resource type="Script" uid="uid://c0anrunhtmg4f" path="res://scripts/quarry/QuarryLevel/StorageButton.gd" id="4_xnjcu"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4kdlw"]
+bg_color = Color(0.05882353, 0.078431375, 0.14117648, 1)
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o75gs"]
 texture = ExtResource("3_f5n36")
@@ -17,8 +21,89 @@ texture_region_size = Vector2i(64, 64)
 tile_size = Vector2i(64, 64)
 sources/0 = SubResource("TileSetAtlasSource_o75gs")
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fiesl"]
+bg_color = Color(0.101960786, 0.18039216, 0.34901962, 1)
+border_width_bottom = 5
+border_blend = true
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_o75gs"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5lt38"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ovp31"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_v4vw5"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qqmch"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qy8sr"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3xxt2"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gofos"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_55qa0"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_64n1x"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kr837"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qm24e"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_is37r"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r817q"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8lbet"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_g6uuh"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p7lh0"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oioxr"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_x4eio"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_75gib"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8n55m"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fju6w"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1d6ly"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
 [node name="QuarryLevel" type="Node2D" unique_id=1268584092]
 script = ExtResource("1_emm1t")
+
+[node name="Background" type="Panel" parent="." unique_id=305021078]
+offset_left = -6344.0
+offset_top = -4776.0
+offset_right = 10712.0
+offset_bottom = 7544.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_4kdlw")
 
 [node name="FloorTileMap" type="TileMapLayer" parent="." unique_id=1954945130]
 tile_set = ExtResource("2_gu3et")
@@ -41,77 +126,137 @@ tile_set = ExtResource("2_gu3et")
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1152.0
-offset_bottom = 100.0
+offset_bottom = 128.0
 
 [node name="Panel" type="Panel" parent="CanvasLayer/UIPanel" unique_id=1342970794 groups=["ui"]]
 layout_mode = 0
 offset_right = 1152.0
-offset_bottom = 100.0
+offset_bottom = 128.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_fiesl")
 
 [node name="MoneyLabel" type="Label" parent="CanvasLayer/UIPanel" unique_id=877901244 groups=["ui"]]
 layout_mode = 0
-offset_left = 904.0
-offset_top = 6.0
-offset_right = 972.0
-offset_bottom = 29.0
+offset_left = 856.0
+offset_top = 16.0
+offset_right = 924.0
+offset_bottom = 39.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
 text = "Деньги: "
 
 [node name="BackButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=1236925062]
 layout_mode = 0
-offset_left = 21.0
+offset_left = 16.0
 offset_top = 8.0
-offset_right = 141.0
-offset_bottom = 39.0
+offset_right = 187.0
+offset_bottom = 56.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_o75gs")
+theme_override_styles/hover = SubResource("StyleBoxFlat_5lt38")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_ovp31")
 text = "Назад к карте"
 script = ExtResource("1_vnvd0")
 
 [node name="StorageButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=862897679 groups=["ui"]]
 layout_mode = 0
-offset_left = 829.0
-offset_top = 9.0
-offset_right = 886.0
-offset_bottom = 40.0
+offset_left = 920.0
+offset_top = 56.0
+offset_right = 1024.0
+offset_bottom = 112.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_v4vw5")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_qqmch")
+theme_override_styles/hover = SubResource("StyleBoxFlat_qy8sr")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_3xxt2")
 text = "Склад"
 script = ExtResource("4_xnjcu")
 
 [node name="FactoryProgressBar" type="ProgressBar" parent="CanvasLayer/UIPanel" unique_id=1507863989]
 layout_mode = 0
 offset_left = 248.0
-offset_top = 16.0
-offset_right = 448.0
-offset_bottom = 43.0
+offset_top = 56.0
+offset_right = 464.0
+offset_bottom = 83.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 18
 
 [node name="FactoryLabel" type="Label" parent="CanvasLayer/UIPanel" unique_id=1804241754]
 layout_mode = 0
 offset_left = 248.0
-offset_top = 56.0
-offset_right = 288.0
-offset_bottom = 79.0
+offset_top = 88.0
+offset_right = 449.0
+offset_bottom = 111.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 18
 text = "Осталось переработать: "
 
 [node name="VehiclesButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=1464985342]
 layout_mode = 0
-offset_left = 824.0
-offset_top = 48.0
-offset_right = 899.0
-offset_bottom = 79.0
+offset_left = 800.0
+offset_top = 56.0
+offset_right = 912.0
+offset_bottom = 112.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_gofos")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_55qa0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_64n1x")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_kr837")
 text = "Техника"
 
 [node name="PlaceGeneratorButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=682817487]
 layout_mode = 0
-offset_left = 552.0
-offset_top = 16.0
-offset_right = 742.0
-offset_bottom = 47.0
+offset_left = 536.0
+offset_top = 8.0
+offset_right = 760.0
+offset_bottom = 64.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_qm24e")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_is37r")
+theme_override_styles/hover = SubResource("StyleBoxFlat_r817q")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_8lbet")
 text = "Установить генератор"
 
 [node name="StartGeneratorsButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=208796447]
 layout_mode = 0
-offset_left = 552.0
-offset_top = 56.0
-offset_right = 744.0
-offset_bottom = 87.0
+offset_left = 536.0
+offset_top = 72.0
+offset_right = 760.0
+offset_bottom = 112.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("StyleBoxFlat_g6uuh")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_p7lh0")
+theme_override_styles/hover = SubResource("StyleBoxFlat_oioxr")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_x4eio")
 text = "Запустить генераторы"
+
+[node name="ShopButton" type="Button" parent="CanvasLayer/UIPanel" unique_id=1290499575]
+layout_mode = 0
+offset_left = 1032.0
+offset_top = 56.0
+offset_right = 1144.0
+offset_bottom = 112.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_75gib")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_8n55m")
+theme_override_styles/hover = SubResource("StyleBoxFlat_fju6w")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_1d6ly")
+text = "Магазин"
+
+[node name="Label" type="Label" parent="CanvasLayer/UIPanel" unique_id=1790105734]
+layout_mode = 0
+offset_left = 248.0
+offset_top = 16.0
+offset_right = 320.0
+offset_bottom = 39.0
+theme_override_fonts/font = ExtResource("4_o75gs")
+theme_override_font_sizes/font_size = 24
+text = "Фабрика"
 
 [node name="PopupContainer" type="Node2D" parent="CanvasLayer" unique_id=1079682184]
 
@@ -124,3 +269,4 @@ script = ExtResource("4_dqt1b")
 [connection signal="pressed" from="CanvasLayer/UIPanel/VehiclesButton" to="." method="_on_vehicles_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/UIPanel/PlaceGeneratorButton" to="." method="_on_place_generator_button_pressed"]
 [connection signal="pressed" from="CanvasLayer/UIPanel/StartGeneratorsButton" to="." method="_on_start_generators_button_pressed"]
+[connection signal="pressed" from="CanvasLayer/UIPanel/ShopButton" to="." method="_on_shop_button_pressed"]

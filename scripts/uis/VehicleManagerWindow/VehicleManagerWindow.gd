@@ -24,11 +24,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	# Обновляем список транспорта
 	update_timer += delta
 	if update_timer >= UPDATE_INTERVAL:
 		update_timer = 0.0
-		# Проверяем, изменился ли статус у любого транспорта
 		var has_changes = false
 		for truck in Global.vehicles["trucks"]:
 			if truck.get("status") != truck.get("_cached_status", ""):
@@ -48,7 +46,6 @@ func _process(delta: float) -> void:
 	if selected_vehicle_id != null:
 		var vehicle = get_vehicle_by_id(selected_vehicle_id)
 		if vehicle:
-			# Кешируем статус для отслеживания изменений
 			vehicle["_cached_status"] = vehicle.get("status", "")
 			
 			if vehicle.get("status") == "traveling":
@@ -98,12 +95,27 @@ func center_window():
 	global_position = (viewport_size - window_size) / 2
 
 
+func apply_font_to_button(button: Button, size: int = 20):
+	if not button:
+		return
+	if Global.exo2_font:
+		button.add_theme_font_override("font", Global.exo2_font)
+		button.add_theme_font_size_override("font_size", size)
+
+
+func apply_font_to_label(label: Label, size: int = 20):
+	if not label:
+		return
+	if Global.exo2_font:
+		label.add_theme_font_override("font", Global.exo2_font)
+		label.add_theme_font_size_override("font_size", size)
+
+
 func _on_close_button_pressed() -> void:
 	queue_free()
 
 
 func update_vehicle_list():
-	# Очищаем кеш статусов
 	for truck in Global.vehicles["trucks"]:
 		truck["_cached_status"] = truck.get("status", "")
 	for excavator in Global.vehicles["excavators"]:
@@ -123,8 +135,30 @@ func update_vehicle_list():
 		var label = Label.new()
 		label.text = "Нет техники"
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_color_override("font_color", Color("#667F99"))
+		apply_font_to_label(label, 20)
 		$VehicleContainer.add_child(label)
 		return
+	
+	var btn_normal = StyleBoxFlat.new()
+	btn_normal.bg_color = Color("#141F33")
+	btn_normal.corner_radius_top_left = 6
+	btn_normal.corner_radius_top_right = 6
+	btn_normal.corner_radius_bottom_left = 6
+	btn_normal.corner_radius_bottom_right = 6
+	btn_normal.border_width_left = 1
+	btn_normal.border_width_right = 1
+	btn_normal.border_width_top = 1
+	btn_normal.border_width_bottom = 1
+	btn_normal.border_color = Color("#1A2640")
+	
+	var btn_hover = btn_normal.duplicate()
+	btn_hover.bg_color = Color("#1A2E59")
+	btn_hover.border_color = Color("#3366B3")
+	
+	var btn_selected = btn_normal.duplicate()
+	btn_selected.bg_color = Color("#264080")
+	btn_selected.border_color = Color("#0099FF")
 	
 	for entry in all_vehicles:
 		var vehicle = entry["data"]
@@ -133,13 +167,20 @@ func update_vehicle_list():
 		var button = Button.new()
 		var status_text = get_status_text(vehicle.get("status", "idle"))
 		button.text = template.get("name", "Транспорт") + " #" + str(vehicle.get("id", 0)) + " (" + status_text + ")"
-		button.size = Vector2(192, 40)
+		button.size = Vector2(192, 44)
 		button.set_meta("vehicle_id", vehicle.get("id", 0))
 		button.pressed.connect(_on_vehicle_selected.bind(vehicle.get("id", 0)))
 		
-		# Если этот транспорт выбран — выделяем
 		if selected_vehicle_id == vehicle.get("id", 0):
-			button.add_theme_color_override("font_color", Color.YELLOW)
+			button.add_theme_stylebox_override("normal", btn_selected)
+			button.add_theme_stylebox_override("hover", btn_selected)
+			button.add_theme_color_override("font_color", Color("#E6F2FF"))
+		else:
+			button.add_theme_stylebox_override("normal", btn_normal)
+			button.add_theme_stylebox_override("hover", btn_hover)
+			button.add_theme_color_override("font_color", Color("#99BFFF"))
+		
+		apply_font_to_button(button, 18)
 		
 		$VehicleContainer.add_child(button)
 		vehicle_buttons[vehicle.get("id", 0)] = button
@@ -158,19 +199,44 @@ func get_status_text(status: String) -> String:
 
 
 func _on_vehicle_selected(vehicle_id: int):
-	# Запрещаем выбирать транспорт, если открыто окно задачи
 	if is_task_window_open:
 		print("Сначала закройте окно задачи!")
 		return
 	
 	selected_vehicle_id = vehicle_id
+	
+	var btn_normal = StyleBoxFlat.new()
+	btn_normal.bg_color = Color("#141F33")
+	btn_normal.corner_radius_top_left = 6
+	btn_normal.corner_radius_top_right = 6
+	btn_normal.corner_radius_bottom_left = 6
+	btn_normal.corner_radius_bottom_right = 6
+	btn_normal.border_width_left = 1
+	btn_normal.border_width_right = 1
+	btn_normal.border_width_top = 1
+	btn_normal.border_width_bottom = 1
+	btn_normal.border_color = Color("#1A2640")
+	
+	var btn_hover = btn_normal.duplicate()
+	btn_hover.bg_color = Color("#1A2E59")
+	btn_hover.border_color = Color("#3366B3")
+	
+	var btn_selected = btn_normal.duplicate()
+	btn_selected.bg_color = Color("#264080")
+	btn_selected.border_color = Color("#0099FF")
+	
 	for id in vehicle_buttons:
 		var btn = vehicle_buttons.get(id)
 		if btn:
 			if id == selected_vehicle_id:
-				btn.add_theme_color_override("font_color", Color.YELLOW)
+				btn.add_theme_stylebox_override("normal", btn_selected)
+				btn.add_theme_stylebox_override("hover", btn_selected)
+				btn.add_theme_color_override("font_color", Color("#E6F2FF"))
 			else:
-				btn.remove_theme_color_override("font_color")
+				btn.add_theme_stylebox_override("normal", btn_normal)
+				btn.add_theme_stylebox_override("hover", btn_hover)
+				btn.add_theme_color_override("font_color", Color("#99BFFF"))
+			apply_font_to_button(btn, 18)
 	show_info_panel()
 
 
@@ -194,6 +260,9 @@ func show_info_panel():
 	else:
 		$Control/VehicleIcon.visible = false
 	
+	$Control/VehicleInfo.add_theme_color_override("font_color", Color("#E6F2FF"))
+	apply_font_to_label($Control/VehicleInfo, 18)
+	
 	var info_text = ""
 	info_text += template.get("name", "Транспорт") + " #" + str(vehicle.get("id", 0)) + "\n"
 	info_text += "Статус: " + get_status_text(vehicle.get("status", "idle")) + "\n"
@@ -205,7 +274,7 @@ func show_info_panel():
 		info_text += "Грузоподъёмность: " + str(capacity) + " кг"
 	elif vehicle.get("template") == "excavator":
 		var current_ore = vehicle.get("ore_amount", 0)
-		var capacity = 10  # экскаватор вмещает 10 кг за раз
+		var capacity = 10
 		info_text += "Груз: " + str(current_ore) + " / " + str(capacity) + " кг\n"
 		if vehicle.get("is_full", false):
 			info_text += "Ковш полон! Нужно разгрузить в грузовик."
@@ -229,7 +298,6 @@ func show_info_panel():
 	
 	$Control/VehicleInfo.text = info_text
 	
-	# Кнопка задачи доступна только если статус idle И не открыто окно задачи
 	var can_assign_task = vehicle.get("status") == "idle" and not is_task_window_open
 	$Control/TaskButton.visible = true
 	$Control/TaskButton.disabled = not can_assign_task
@@ -336,7 +404,6 @@ func open_task_window():
 	if vehicle == null:
 		return
 	
-	# Проверяем, не открыто ли уже окно
 	if is_task_window_open:
 		return
 	
@@ -345,13 +412,11 @@ func open_task_window():
 	task_window.task_selected.connect(on_task_selected)
 	task_window.task_cancelled.connect(_on_task_window_cancelled)
 	
-	# Используем tree_exited для отслеживания закрытия окна
 	task_window.tree_exited.connect(_on_task_window_closed)
 	
 	$PopupContainer.add_child(task_window)
 	is_task_window_open = true
 	
-	# Обновляем кнопку задачи
 	show_info_panel()
 
 

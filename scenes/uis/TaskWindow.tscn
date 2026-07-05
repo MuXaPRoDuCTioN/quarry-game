@@ -1,10 +1,56 @@
 [gd_scene format=3 uid="uid://ca4t6kytk2dcr"]
 
 [ext_resource type="Script" uid="uid://w5wmocawbkpd" path="res://scripts/uis/TaskWindow/TaskWindow.gd" id="1_ku45i"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="2_3gyio"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quxf6"]
+bg_color = Color(0.050980393, 0.078431375, 0.14901961, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c0q21"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bresu"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1jkpa"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tpb6g"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3v02e"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k6whd"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_oush0"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c47co"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yyl35"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_noibg"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f22yb"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5wqtj"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
 
 [node name="TaskWindow" type="Panel" unique_id=529042469]
 offset_right = 384.0
 offset_bottom = 192.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_quxf6")
 script = ExtResource("1_ku45i")
 
 [node name="StaticControl" type="Control" parent="." unique_id=1883741964]
@@ -18,30 +64,50 @@ offset_left = 8.0
 offset_top = 8.0
 offset_right = 153.0
 offset_bottom = 31.0
+theme_override_fonts/font = ExtResource("2_3gyio")
+theme_override_font_sizes/font_size = 20
 text = "Выберите задачу:"
 
 [node name="ConfirmButton" type="Button" parent="StaticControl" unique_id=2032548458]
 layout_mode = 0
-offset_left = 208.0
+offset_left = 192.0
 offset_top = 16.0
-offset_right = 286.0
-offset_bottom = 47.0
+offset_right = 276.0
+offset_bottom = 48.0
+theme_override_fonts/font = ExtResource("2_3gyio")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_c0q21")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_bresu")
+theme_override_styles/hover = SubResource("StyleBoxFlat_1jkpa")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_tpb6g")
 text = "Принять"
 
 [node name="CancleButton" type="Button" parent="StaticControl" unique_id=1095155430]
 layout_mode = 0
-offset_left = 296.0
+offset_left = 288.0
 offset_top = 16.0
-offset_right = 367.0
-offset_bottom = 47.0
+offset_right = 368.0
+offset_bottom = 48.0
+theme_override_fonts/font = ExtResource("2_3gyio")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_3v02e")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_k6whd")
+theme_override_styles/hover = SubResource("StyleBoxFlat_oush0")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_c47co")
 text = "Отмена"
 
 [node name="TaskSelector" type="OptionButton" parent="StaticControl" unique_id=1532669837]
 layout_mode = 0
 offset_left = 16.0
-offset_top = 48.0
+offset_top = 56.0
 offset_right = 48.0
-offset_bottom = 68.0
+offset_bottom = 76.0
+theme_override_fonts/font = ExtResource("2_3gyio")
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBoxFlat_yyl35")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_noibg")
+theme_override_styles/hover = SubResource("StyleBoxFlat_f22yb")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_5wqtj")
 
 [node name="DynamicControl" type="Control" parent="." unique_id=2124964891]
 anchors_preset = 0

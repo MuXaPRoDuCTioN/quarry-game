@@ -11,27 +11,15 @@ var current_target = null
 var rubble_tile_map: TileMapLayer
 var current_level: int
 var DIGGING_SPEED = 5.0
-var progress_bar: ProgressBar = null
 
 
 func setup(rubble_map: TileMapLayer, level: int):
 	rubble_tile_map = rubble_map
 	current_level = level
-	
-	progress_bar = ProgressBar.new()
-	progress_bar.min_value = 0
-	progress_bar.max_value = 100
-	progress_bar.value = 0
-	progress_bar.size = Vector2(60, 12)
-	progress_bar.visible = false
-	progress_bar.z_index = 25
-	add_child(progress_bar)
 
 
 func _process(delta: float) -> void:
 	if not is_digging or current_target == null:
-		if progress_bar:
-			progress_bar.visible = false
 		return
 	
 	var rubble_exists = false
@@ -53,10 +41,6 @@ func _process(delta: float) -> void:
 	current_target["progress"] += delta * DIGGING_SPEED
 	
 	var cell = get_excavator_cell(current_target["vehicle_id"])
-	if cell != null and progress_bar:
-		progress_bar.position = Vector2(cell.x * 64 + 2, cell.y * 64 - 20)
-		progress_bar.visible = true
-		progress_bar.value = (current_target["progress"] / 10.0) * 100
 	
 	emit_signal("digging_progress", current_target["vehicle_id"], current_target["progress"] / 10.0, cell)
 	
@@ -74,7 +58,6 @@ func _process(delta: float) -> void:
 			Global.rubbles.remove_at(current_target["rubble_index"])
 			print("Куча исчерпана и удалена! Осталось куч: ", Global.rubbles.size())
 		
-		# Получаем тип руды из кучи
 		var rock_type_id = rubble.get("rock_type_id", 0)
 		var ore_type = get_ore_from_rubble(rock_type_id)
 		
@@ -185,8 +168,6 @@ func stop_digging():
 	
 	is_digging = false
 	current_target = null
-	if progress_bar:
-		progress_bar.visible = false
 
 
 func is_busy() -> bool:

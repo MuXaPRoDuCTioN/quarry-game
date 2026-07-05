@@ -235,15 +235,15 @@ func _on_apply_button_pressed() -> void:
 	var hint_color = Color.WHITE
 	
 	if matched_point == null:
-		hint_text = "Холодно. Далеко от цели."
+		hint_text = "Далеко от цели."
 		hint_color = Color(0.3, 0.5, 1)
 		status = 5
 	elif matched_point["is_correct"]:
-		hint_text = "Идеально! Нужная частота!"
+		hint_text = "Нужная частота!"
 		hint_color = Color(0, 0.8, 0.2)
 		status = 1
 	else:
-		hint_text = "Ложный сигнал! Не та частота."
+		hint_text = "Ложный сигнал!"
 		hint_color = Color(1, 0.2, 0.2)
 		status = 6
 	

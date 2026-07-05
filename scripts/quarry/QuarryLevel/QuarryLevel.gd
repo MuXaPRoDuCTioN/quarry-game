@@ -1,28 +1,34 @@
 extends Node2D
 
 
+# ===== ТАЙЛЫ =====
 var FLOOR_TILE = Vector2i(0, 0)
 var BORDER_TILE = Vector2i(1, 0)
 
 
+# 4 породы стен (колонка 1)
 var WALL_TILES = {
-	0: Vector2i(0, 1),  
-	1: Vector2i(1, 1),  
-	2: Vector2i(2, 1),
-	3: Vector2i(3, 1)
+	0: Vector2i(0, 1),  # Известняк
+	1: Vector2i(1, 1),  # Кварцит
+	2: Vector2i(2, 1),  # Гематит
+	3: Vector2i(3, 1)   # Кимберлит
 }
 
 
+# 4 вида куч (колонка 2)
 var RUBBLE_TILES = {
-	0: Vector2i(0, 2), 
-	1: Vector2i(1, 2),  
-	2: Vector2i(2, 2),  
-	3: Vector2i(3, 2) 
+	0: Vector2i(0, 2),  # куча известняка
+	1: Vector2i(1, 2),  # куча кварцита
+	2: Vector2i(2, 2),  # куча гематита
+	3: Vector2i(3, 2)   # куча кимберлита
 }
+
 
 var TRUCK_TILE = Vector2i(1, 0)
 var EXCAVATOR_TILE = Vector2i(0, 0)
 
+
+# ===== ОСТАЛЬНОЙ КОД =====
 
 @onready var wall_tile_map = $WallTileMap
 @onready var border_tile_map = $BorderTileMap
@@ -30,12 +36,15 @@ var EXCAVATOR_TILE = Vector2i(0, 0)
 @onready var popup_container = $CanvasLayer/PopupContainer
 @onready var vehicle_tile_map = $VehicleTileMap
 @onready var floor_tile_map = $FloorTileMap
+
 @onready var factory_progress_bar = $CanvasLayer/UIPanel/FactoryProgressBar
 @onready var factory_label = $CanvasLayer/UIPanel/FactoryLabel
+
 @onready var place_generator_button = $CanvasLayer/UIPanel/PlaceGeneratorButton
 @onready var start_generators_button = $CanvasLayer/UIPanel/StartGeneratorsButton
 @onready var storage_button = $CanvasLayer/UIPanel/StorageButton
 @onready var vehicles_button = $CanvasLayer/UIPanel/VehiclesButton
+@onready var shop_button = $CanvasLayer/UIPanel/ShopButton
 
 
 var QuarryGenerator = preload("res://scripts/quarry/QuarryLevel/QuarryGenerator.gd")
@@ -82,6 +91,8 @@ var StorageWindow = preload("res://scenes/uis/StorageWindow.tscn")
 var stor_window_instate
 var VehicleManagementWindow = preload("res://scenes/uis/VehicleManagementWindow.tscn")
 var veh_man_window_instance
+var BuyVehicleWindow = preload("res://scenes/uis/BuyVehicleWindow.tscn")
+var buy_veh_window_instance
 
 
 var WallDestructionSystem = preload("res://scripts/quarry/QuarryLevel/WallDestructionSystem.gd")
@@ -106,6 +117,10 @@ var hover_sprite: Sprite2D = null
 var wall_auto_discovered: Dictionary = {}  # Стены, определённые автоматически для разрушения генераторами
 
 
+var progress_style_bg: StyleBoxFlat = null
+var progress_style_fill: StyleBoxFlat = null
+
+
 func _ready():
 	current_level = Global.current_level
 	Global.is_on_level = true
@@ -116,6 +131,9 @@ func _ready():
 		print("Сгенерирован уровень ", str(current_level))
 	else:
 		print("Загружен уровень ", str(current_level))
+	
+	setup_progress_bar_style()
+	setup_shop_button()
 	
 	selection_sprite = Sprite2D.new()
 	selection_sprite.visible = false
@@ -149,8 +167,18 @@ func _ready():
 		bar.max_value = 100
 		bar.value = 0
 		bar.visible = false
-		bar.size = Vector2(60, 12)
+		bar.size = Vector2(60, 16)
 		bar.z_index = 25
+		
+		if progress_style_bg:
+			bar.add_theme_stylebox_override("slider", progress_style_bg)
+		if progress_style_fill:
+			bar.add_theme_stylebox_override("fill", progress_style_fill)
+		bar.add_theme_color_override("font_color", Color("#E6F2FF"))
+		bar.add_theme_font_size_override("font_size", 11)
+		if Global.exo2_font:
+			bar.add_theme_font_override("font", Global.exo2_font)
+		
 		add_child(bar)
 		progress_bars[key] = bar
 	
@@ -181,6 +209,42 @@ func _ready():
 	draw_quarry()
 	update_ui()
 	update_start_button_state()
+
+
+func setup_progress_bar_style():
+	progress_style_bg = StyleBoxFlat.new()
+	progress_style_bg.bg_color = Color("#1A2640")
+	progress_style_bg.corner_radius_top_left = 4
+	progress_style_bg.corner_radius_top_right = 4
+	progress_style_bg.corner_radius_bottom_left = 4
+	progress_style_bg.corner_radius_bottom_right = 4
+	
+	progress_style_fill = StyleBoxFlat.new()
+	progress_style_fill.bg_color = Color("#0099FF")
+	progress_style_fill.corner_radius_top_left = 4
+	progress_style_fill.corner_radius_top_right = 4
+	progress_style_fill.corner_radius_bottom_left = 4
+	progress_style_fill.corner_radius_bottom_right = 4
+
+
+func setup_shop_button():
+	if not shop_button:
+		return
+
+
+func _on_shop_button_pressed():
+	if is_window_open:
+		return
+	open_buy_vehicle_window()
+
+
+func open_buy_vehicle_window():
+	block_all_buttons()
+	buy_veh_window_instance = BuyVehicleWindow.instantiate()
+	popup_container.add_child(buy_veh_window_instance)
+	is_window_open = true
+	buy_veh_window_instance.connect("window_closed", window_closed)
+	buy_veh_window_instance.connect("update_ui", update_ui)
 
 
 func setup_ui_buttons():
@@ -370,7 +434,8 @@ func unlock_all_buttons():
 	var buttons = [
 		place_generator_button,
 		storage_button,
-		vehicles_button
+		vehicles_button,
+		shop_button
 	]
 	for button in buttons:
 		if button:
@@ -382,7 +447,8 @@ func block_all_buttons():
 		place_generator_button,
 		start_generators_button,
 		storage_button,
-		vehicles_button
+		vehicles_button,
+		shop_button
 	]
 	for button in buttons:
 		if button:
@@ -812,7 +878,7 @@ func _on_frequency_selected_for_wall(freq, status):
 func window_closed():
 	is_window_open = false
 	unlock_all_buttons()
-	update_start_button_state()  # <-- ДОБАВИТЬ
+	update_start_button_state()
 
 
 func _on_storage_button_pressed():
@@ -841,7 +907,7 @@ func open_vehicle_management_window():
 func _on_vehicle_window_closed():
 	is_window_open = false
 	unlock_all_buttons()
-	update_start_button_state()  # <-- ДОБАВИТЬ
+	update_start_button_state()
 
 
 func destroy_more_cells(cond):
@@ -997,9 +1063,19 @@ func _on_vehicle_progress(vehicle_id, progress):
 		bar.min_value = 0
 		bar.max_value = 100
 		bar.value = 0
-		bar.size = Vector2(60, 12)
+		bar.size = Vector2(60, 16)
 		bar.visible = true
 		bar.z_index = 25
+		
+		if progress_style_bg:
+			bar.add_theme_stylebox_override("slider", progress_style_bg)
+		if progress_style_fill:
+			bar.add_theme_stylebox_override("fill", progress_style_fill)
+		bar.add_theme_color_override("font_color", Color("#E6F2FF"))
+		bar.add_theme_font_size_override("font_size", 11)
+		if Global.exo2_font:
+			bar.add_theme_font_override("font", Global.exo2_font)
+		
 		add_child(bar)
 		move_progress_bars[vehicle_id] = bar
 	
@@ -1020,6 +1096,16 @@ func update_progress_bar(key: String, progress: float):
 		if progress <= 0:
 			bar.visible = false
 		else:
+			if progress_style_bg and not bar.has_theme_stylebox_override("slider"):
+				bar.add_theme_stylebox_override("slider", progress_style_bg)
+			if progress_style_fill and not bar.has_theme_stylebox_override("fill"):
+				bar.add_theme_stylebox_override("fill", progress_style_fill)
+			if not bar.has_theme_color_override("font_color"):
+				bar.add_theme_color_override("font_color", Color("#E6F2FF"))
+				bar.add_theme_font_size_override("font_size", 11)
+				if Global.exo2_font:
+					bar.add_theme_font_override("font", Global.exo2_font)
+			
 			bar.value = clamp(progress * 100, 0, 100)
 			bar.visible = true
 			if key == "loading" and selected_excavator_for_unload != null:
@@ -1040,6 +1126,16 @@ func _on_digging_progress(vehicle_id, progress, cell):
 		if progress <= 0:
 			bar.visible = false
 		else:
+			if progress_style_bg and not bar.has_theme_stylebox_override("slider"):
+				bar.add_theme_stylebox_override("slider", progress_style_bg)
+			if progress_style_fill and not bar.has_theme_stylebox_override("fill"):
+				bar.add_theme_stylebox_override("fill", progress_style_fill)
+			if not bar.has_theme_color_override("font_color"):
+				bar.add_theme_color_override("font_color", Color("#E6F2FF"))
+				bar.add_theme_font_size_override("font_size", 11)
+				if Global.exo2_font:
+					bar.add_theme_font_override("font", Global.exo2_font)
+			
 			bar.value = clamp(progress * 100, 0, 100)
 			bar.visible = true
 			if cell != null:

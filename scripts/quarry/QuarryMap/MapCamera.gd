@@ -2,8 +2,12 @@ extends Camera2D
 
 
 var camera_speed = 30.0
-var min_y = 324.0
-var max_y = 700.0
+var min_y = 0.0
+var max_y = 3100.0
+
+
+func _ready() -> void:
+	position.y = clamp(position.y, min_y, max_y)
 
 
 func _input(event: InputEvent):

@@ -12,7 +12,7 @@ var price = 0
 var count = 1
 var ore_buttons = {}
 var update_timer = 0.0
-var UPDATE_INTERVAL = 0.5  # обновление каждые 0.5 секунды
+var UPDATE_INTERVAL = 0.5
 
 
 func _ready() -> void:
@@ -26,7 +26,6 @@ func _process(delta: float) -> void:
 	update_timer += delta
 	if update_timer >= UPDATE_INTERVAL:
 		update_timer = 0.0
-		# Обновляем только если есть изменения
 		update_ore_grid()
 		if selected_ore != null:
 			update_bottom_panel()
@@ -72,13 +71,10 @@ func _on_ore_button_pressed(ore_id):
 
 
 func update_ore_grid():
-	# Проверяем, изменилось ли количество руды
 	var has_changes = false
 	for ore_id in Global.storage:
 		var current_count = Global.storage[ore_id]
-		# Проверяем, есть ли кнопка для этой руды
 		if ore_buttons.has(ore_id):
-			# Обновляем текст на кнопке
 			var button = ore_buttons[ore_id]
 			for child in button.get_children():
 				if child is Label:
@@ -88,7 +84,6 @@ func update_ore_grid():
 			has_changes = true
 			break
 	
-	# Если есть изменения или появилась новая руда - перестраиваем всё
 	if has_changes or ore_buttons.size() != Global.storage.size():
 		_rebuild_ore_grid()
 
@@ -136,7 +131,6 @@ func update_bottom_panel():
 	else:
 		var current_count = Global.storage.get(selected_ore, 0)
 		if current_count <= 0:
-			# Если руда закончилась, снимаем выделение
 			highlight_button(selected_ore, false)
 			selected_ore = null
 			update_bottom_panel()

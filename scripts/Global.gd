@@ -10,6 +10,11 @@ var vehicle_id_counter = 0
 var is_on_level = false
 
 
+# Лимиты на технику
+var MAX_TRUCKS = 5
+var MAX_EXCAVATORS = 3
+
+
 var rubbles = []  # [{cell: Vector2i, weight: int, remaining: int, rock_type_id: int}]
 var factory_queue_weight = 0
 var factory_queue = []  # [{"weight": int, "ore_type": String}]
@@ -52,19 +57,19 @@ var rubble_ore_data = {
 var ore_data = {
 	"gold": {
 		"name": "Золото",
-		"price": 100,
+		"price": 300,  # было 100
 		"atlas_region": Rect2(0, 0, 64, 64),
 		"icon": null
 	},
 	"iron": {
 		"name": "Железо",
-		"price": 50,
+		"price": 100,  # было 50
 		"atlas_region": Rect2(64, 0, 64, 64),
 		"icon": null
 	},
 	"coal": {
 		"name": "Уголь",
-		"price": 25,
+		"price": 50,  # было 25
 		"atlas_region": Rect2(128, 0, 64, 64),
 		"icon": null
 	}
@@ -109,6 +114,7 @@ var rock_types = {
 
 var ore_texture_path = load("res://assets/textures/icons/ore.png")
 var vehicle_texture_path = load("res://assets/textures/icons/Vehicles.png")
+var exo2_font: FontFile
 
 
 var vehicle_templates = {
@@ -158,6 +164,8 @@ func _ready() -> void:
 			vehicle_texture.region = data["atlas_region"]
 			data["icon"] = vehicle_texture
 	
+	exo2_font = load("res://assets/fonts/Exo2-VariableFont_wght.ttf") as FontFile
+	
 	set_process(true)
 
 
@@ -201,8 +209,43 @@ func sell_ore(ore_id: String, amount: int):
 		money += amount * ore_data[ore_id]["price"]
 
 
+func get_vehicle_count(type: String) -> int:
+	if type == "truck":
+		return vehicles["trucks"].size()
+	elif type == "excavator":
+		return vehicles["excavators"].size()
+	return 0
+
+
+func get_max_vehicles(type: String) -> int:
+	if type == "truck":
+		return MAX_TRUCKS
+	elif type == "excavator":
+		return MAX_EXCAVATORS
+	return 0
+
+
+func can_buy_vehicle(type: String) -> bool:
+	var current = get_vehicle_count(type)
+	var max_count = get_max_vehicles(type)
+	return current < max_count
+
+
+func get_vehicle_price(type: String) -> int:
+	var base_price = vehicle_templates[type]["price"]
+	var count = get_vehicle_count(type)
+	# Каждый следующий транспорт на 50% дороже
+	# 1-й: base_price, 2-й: base_price * 1.5, 3-й: base_price * 2.25, и т.д.
+	var multiplier = pow(1.5, count)
+	return int(base_price * multiplier)
+
+
 func buy_vehicle(type: String) -> bool:
-	var price = vehicle_templates[type]["price"]
+	if not can_buy_vehicle(type):
+		print("Достигнут лимит ", type, "ов! Максимум: ", get_max_vehicles(type))
+		return false
+	
+	var price = get_vehicle_price(type)
 	if money >= price:
 		money -= price
 		vehicle_id_counter += 1
@@ -249,16 +292,14 @@ func add_to_factory_queue(weight: int, ore_type: String):
 
 
 func process_factory(delta):
-	# Если ничего не обрабатывается и есть очередь
 	if factory_processing == null and factory_queue.size() > 0:
-		var item = factory_queue[0]  # смотрим первый элемент
-		var weight = min(10, item["weight"])  # берём максимум 10 кг
+		var item = factory_queue[0]
+		var weight = min(10, item["weight"])
 		
-		# Уменьшаем вес в очереди
 		if item["weight"] <= 10:
-			factory_queue.pop_front()  # удаляем полностью
+			factory_queue.pop_front()
 		else:
-			item["weight"] -= 10  # уменьшаем вес
+			item["weight"] -= 10
 		
 		factory_queue_weight -= weight
 		
@@ -269,7 +310,6 @@ func process_factory(delta):
 		}
 		print("Начата переработка ", weight, " кг ", item["ore_type"], ". Осталось в очереди: ", factory_queue_weight)
 	
-	# Обрабатываем текущую партию
 	if factory_processing != null:
 		factory_processing["progress"] += delta * FACTORY_PROCESSING_SPEED
 		if factory_processing["progress"] >= factory_processing["weight"]:
