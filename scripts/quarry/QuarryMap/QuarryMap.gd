@@ -246,6 +246,8 @@ func _on_window_closed():
 func _process(delta: float) -> void:
 	update_factory_ui()
 	Global.process_factory(delta)
+	if not is_window_open and Global.is_game_over():
+		_open_game_over_window()
 
 
 func update_factory_ui():
@@ -272,6 +274,11 @@ func _on_level_pressed(level_num):
 	if is_window_open:
 		return
 	
+	# <<< НОВОЕ: если уровень уже пройден — ничего не делаем
+	if Global.is_level_completed(level_num):
+		print("Уровень ", level_num, " уже пройден!")
+		return
+	
 	if Global.purchased_levels.has(level_num):
 		Global.current_level = level_num
 		get_tree().change_scene_to_file("res://scenes/quarry/QuarryLevel.tscn")
@@ -283,7 +290,6 @@ func _on_level_pressed(level_num):
 			update_ui()
 			generator.update_buttons()
 			generator.update_text(level_num)
-			
 			Global.current_level = level_num
 			get_tree().change_scene_to_file("res://scenes/quarry/QuarryLevel.tscn")
 		else:
@@ -327,3 +333,42 @@ func open_veh_man_window():
 func _on_vehicle_window_closed():
 	is_window_open = false
 	unlock_all_buttons()
+
+
+func block_all_buttons_for_tutorial(step: int):
+	var allowed = TutorialManager.get_allowed_buttons(step) if TutorialManager else []
+	
+	# Блокируем все кнопки
+	buy_menu.disabled = true
+	vehicle_menu.disabled = true
+	back_button.disabled = true
+	storage_button.disabled = true
+	
+	# Разблокируем разрешённые
+	for btn_name in allowed:
+		match btn_name:
+			"shop_button":
+				buy_menu.disabled = false
+			"vehicles_button":
+				vehicle_menu.disabled = false
+			"storage_button":
+				storage_button.disabled = false
+			"level_button_1":
+				# Находим кнопку первого уровня и разблокируем
+				var level_btn = generator.level_buttons.get(1)
+				if level_btn:
+					level_btn.disabled = false
+
+
+func _open_game_over_window() -> void:
+	if is_instance_valid(get_node_or_null("GameOverWindow")):
+		return
+	var GameOverScene = preload("res://scenes/uis/GameOverWindow.tscn")
+	var game_over_window = GameOverScene.instantiate()
+	game_over_window.name = "GameOverWindow"
+	$CanvasLayer.add_child(game_over_window)
+	is_window_open = true
+	game_over_window.game_over_closed.connect(func():
+		is_window_open = false
+		get_tree().change_scene_to_file("res://scenes/main/MainMenu.tscn")
+	)

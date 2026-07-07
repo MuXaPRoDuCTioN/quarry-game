@@ -282,7 +282,7 @@ func show_info_panel():
 			info_text += "Ковш готов к работе"
 	
 	if vehicle.get("task"):
-		info_text += "\nЗадача: " + vehicle.get("task")
+		info_text += "\nЗадача: " + get_task_text(vehicle.get("task"))
 	
 	var location_text = ""
 	var location = vehicle.get("location", "parking")
@@ -428,3 +428,15 @@ func _on_task_window_closed():
 func _on_task_window_cancelled():
 	is_task_window_open = false
 	show_info_panel()
+
+
+func get_task_text(task: String) -> String:
+	if task == null or task == "":
+		return "Нет"
+	var map = {
+		"go_to_level": "Едет на уровень",
+		"go_to_factory": "Едет на фабрику",
+		"go_to_parking": "Едет на парковку",
+		"unload_at_factory": "Разгружается"
+	}
+	return map.get(task, task)

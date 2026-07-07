@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://dg1oh2rtjh70x"]
+
+[ext_resource type="Script" uid="uid://bh7ihrq8gisjy" path="res://scripts/uis/ScoreNotification/ScoreNotification.gd" id="1_rp5ek"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="2_ifu5a"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tkh4f"]
+bg_color = Color(0.050980393, 0.078431375, 0.14901961, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[node name="ScoreNotification" type="Panel" unique_id=279082069]
+offset_right = 96.0
+offset_bottom = 40.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_tkh4f")
+script = ExtResource("1_rp5ek")
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=1502872066]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 88.0
+offset_bottom = 33.0
+theme_override_fonts/font = ExtResource("2_ifu5a")
+theme_override_font_sizes/font_size = 20
+text = "+100000"

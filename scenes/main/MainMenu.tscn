@@ -1,40 +1,116 @@
 [gd_scene format=3 uid="uid://cggl3hr0q8tuo"]
 
 [ext_resource type="Script" uid="uid://c0pd2rd8d2jt0" path="res://scripts/main/NewGameButton.gd" id="1_qi05h"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="1_v3gjy"]
 [ext_resource type="Script" uid="uid://ykmxripxpar2" path="res://scripts/main/ExitGameButton.gd" id="2_uort0"]
+[ext_resource type="Script" uid="uid://q0x0wmf0hhqh" path="res://scripts/main/TutorialStartButton.gd" id="4_jen06"]
+[ext_resource type="Script" uid="uid://b8poqio1qyjxv" path="res://scripts/main/LeaderboardButton.gd" id="5_i65kw"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i65kw"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_blefk"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eclvw"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4gm0a"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yfvkn"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cius5"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kg8x7"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bkjnr"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_440sr"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m8347"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2g00v"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0aa8n"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
 
 [node name="MainMenu" type="Node2D" unique_id=1175325794]
 
 [node name="Background" type="ColorRect" parent="." unique_id=1251592019]
 offset_right = 1152.0
 offset_bottom = 648.0
-color = Color(0.4351923, 0.43519226, 0.43519226, 1)
+color = Color(0.101960786, 0.14901961, 0.2509804, 1)
 
 [node name="NewGame" type="Button" parent="." unique_id=1855393105]
 offset_left = 64.0
 offset_top = 64.0
 offset_right = 320.0
 offset_bottom = 192.0
+theme_override_fonts/font = ExtResource("1_v3gjy")
 theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_i65kw")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_blefk")
+theme_override_styles/hover = SubResource("StyleBoxFlat_eclvw")
 text = "Начать игру"
 script = ExtResource("1_qi05h")
 
 [node name="ExitGame" type="Button" parent="." unique_id=613460669]
 offset_left = 64.0
-offset_top = 256.0
+offset_top = 496.0
 offset_right = 320.0
-offset_bottom = 384.0
+offset_bottom = 624.0
+theme_override_fonts/font = ExtResource("1_v3gjy")
 theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_4gm0a")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_yfvkn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_cius5")
 text = "Выйти из игры"
 script = ExtResource("2_uort0")
+
+[node name="TutorialStartButton" type="Button" parent="." unique_id=2058807024]
+offset_left = 64.0
+offset_top = 208.0
+offset_right = 320.0
+offset_bottom = 336.0
+theme_override_fonts/font = ExtResource("1_v3gjy")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_kg8x7")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_bkjnr")
+theme_override_styles/hover = SubResource("StyleBoxFlat_440sr")
+text = "Обучение"
+script = ExtResource("4_jen06")
 
 [node name="NameOfGame" type="Label" parent="." unique_id=690417281]
 offset_left = 576.0
 offset_top = 64.0
 offset_right = 680.0
 offset_bottom = 87.0
-theme_override_font_sizes/font_size = 35
+theme_override_fonts/font = ExtResource("1_v3gjy")
+theme_override_font_sizes/font_size = 59
 text = "Quarry Game"
+
+[node name="LeaderboardButton" type="Button" parent="." unique_id=737745425]
+offset_left = 64.0
+offset_top = 352.0
+offset_right = 320.0
+offset_bottom = 480.0
+theme_override_fonts/font = ExtResource("1_v3gjy")
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_m8347")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_2g00v")
+theme_override_styles/hover = SubResource("StyleBoxFlat_0aa8n")
+text = "Таблица лидеров"
+script = ExtResource("5_i65kw")
 
 [connection signal="pressed" from="NewGame" to="NewGame" method="_on_pressed"]
 [connection signal="pressed" from="ExitGame" to="ExitGame" method="_on_pressed"]
+[connection signal="pressed" from="TutorialStartButton" to="TutorialStartButton" method="_on_pressed"]
+[connection signal="pressed" from="LeaderboardButton" to="LeaderboardButton" method="_on_pressed"]

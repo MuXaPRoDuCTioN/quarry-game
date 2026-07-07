@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://gqkami5hxc00"]
+
+[ext_resource type="Script" uid="uid://cx6imf6b68oj4" path="res://scripts/uis/TutorialWindow/TutorialWindow.gd" id="1_eo8s2"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="2_y1s8i"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6d0wf"]
+bg_color = Color(0.050980393, 0.078431375, 0.14901961, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y6cji"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vlvwq"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_artaf"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sb1e0"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[node name="TutorialWindow" type="Panel" unique_id=1230091627]
+offset_right = 320.0
+offset_bottom = 256.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_6d0wf")
+script = ExtResource("1_eo8s2")
+
+[node name="TutorialLabel" type="Label" parent="." unique_id=1467229268]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 60.0
+offset_bottom = 39.0
+theme_override_fonts/font = ExtResource("2_y1s8i")
+theme_override_font_sizes/font_size = 20
+text = "Текст"
+
+[node name="NextButton" type="Button" parent="." unique_id=1733150679]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -80.0
+offset_top = -48.0
+offset_right = -14.0
+offset_bottom = -15.0
+theme_override_fonts/font = ExtResource("2_y1s8i")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_y6cji")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_vlvwq")
+theme_override_styles/hover = SubResource("StyleBoxFlat_artaf")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_sb1e0")
+text = "Далее"

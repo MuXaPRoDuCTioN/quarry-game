@@ -8,7 +8,7 @@ var generator
 var is_dragging = false
 var drag_start = Vector2()
 var camera_limits = Rect2()
-var level_size
+var level_size: Vector2 = Vector2(14, 8)
 var tile_size = 64
 
 
@@ -55,3 +55,8 @@ func clamp_camera_position():
 	pos.y = clamp(pos.y, 0, level_size.y * tile_size)
 	
 	position = pos
+
+
+func set_level_size(size: Vector2):
+	level_size = size
+	setup_camera_limits()

@@ -35,6 +35,7 @@ func generate(container, max_levels):
 	
 	for i in range(1, max_levels + 1):
 		var button = Button.new()
+		button.name = "level_button_" + str(i)
 		level_buttons[i] = button
 		button.custom_minimum_size = Vector2(120, 60)
 		
@@ -43,6 +44,7 @@ func generate(container, max_levels):
 		else:
 			button.position = Vector2(150, 65 * (i - 1))
 		
+		# Применяем стиль
 		if Global.purchased_levels.has(i):
 			button.add_theme_stylebox_override("normal", btn_purchased)
 			button.add_theme_stylebox_override("hover", btn_purchased)
@@ -61,6 +63,7 @@ func generate(container, max_levels):
 		button.pressed.connect(_on_level_button_pressed.bind(i))
 		container.add_child(button)
 		
+		# Сохраняем стили для обновления
 		button.set_meta("btn_normal", btn_normal)
 		button.set_meta("btn_hover", btn_hover)
 		button.set_meta("btn_purchased", btn_purchased)
@@ -73,12 +76,26 @@ func _on_level_button_pressed(level_num):
 
 func update_buttons():
 	var last_purchased = get_max_purchased_level()
+	var completed_levels = Global.get_completed_levels()
+	
 	for level_num in level_buttons:
 		var button = level_buttons[level_num]
+		
+		# Если уровень пройден — блокируем (без галочки!)
+		if completed_levels.has(level_num):
+			button.visible = true
+			button.disabled = true
+			button.text = "Этаж " + str(level_num)
+			var btn_locked = button.get_meta("btn_locked")
+			button.add_theme_stylebox_override("normal", btn_locked)
+			button.add_theme_stylebox_override("hover", btn_locked)
+			button.add_theme_color_override("font_color", Color("#667F99"))
+			continue
 		
 		if level_num <= last_purchased + 1:
 			button.visible = true
 			button.disabled = false
+			update_text(level_num)
 		elif level_num == last_purchased + 2:
 			button.visible = true
 			button.disabled = true
@@ -86,6 +103,7 @@ func update_buttons():
 			button.add_theme_stylebox_override("normal", btn_locked)
 			button.add_theme_stylebox_override("hover", btn_locked)
 			button.add_theme_color_override("font_color", Color("#667F99"))
+			button.text = "Этаж " + str(level_num) + "\nЦена: " + str(get_level_price(level_num))
 		else:
 			button.visible = false
 			button.disabled = true
@@ -100,11 +118,13 @@ func get_max_purchased_level():
 
 
 func get_level_price(level_num: int) -> int:
-	# Цена растёт экспоненциально: 200 + (level_num - 1) * 80
-	# 1-й: 200, 10-й: 920, 20-й: 1720, 50-й: 4120
+	# Новая цена: 200 + (level_num - 1) * 80
 	return 200 + (level_num - 1) * 80
 
 
 func update_text(level_num: int):
 	var button = level_buttons[level_num]
-	button.text = "Этаж " + str(level_num)
+	if Global.purchased_levels.has(level_num):
+		button.text = "Этаж " + str(level_num)
+	else:
+		button.text = "Этаж " + str(level_num) + "\nЦена: " + str(get_level_price(level_num))

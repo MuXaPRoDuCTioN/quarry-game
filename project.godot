@@ -19,6 +19,9 @@ config/icon="uid://4nhwftsvc1qv"
 
 Global="*uid://b221n0oxydnck"
 ProgressManager="*uid://c0kp5j4k4kjg4"
+TutorialManager="*uid://qc0n1g4ahpu3"
+LeaderboardManager="*uid://8rgdylwllqc2"
+ScoreNotificationManager="*uid://ck83dyclkfbj2"
 
 [physics]
 

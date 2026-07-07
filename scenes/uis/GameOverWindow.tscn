@@ -1,0 +1,115 @@
+[gd_scene format=3 uid="uid://cqnhm12dthy6b"]
+
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="1_0a2ju"]
+[ext_resource type="Script" uid="uid://bd1xp7jj2ssqu" path="res://scripts/uis/GameOverWindow/GameOverWindow.gd" id="1_e1vks"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e1vks"]
+bg_color = Color(0.050980393, 0.078431375, 0.14901961, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k7opi"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_idrjw"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gitt2"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n7cjv"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_uptc2"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_luhwu"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y50im"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ncubt"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_leipk"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[node name="GameOverWindow" type="Panel" unique_id=790451309]
+offset_right = 512.0
+offset_bottom = 320.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_e1vks")
+script = ExtResource("1_e1vks")
+
+[node name="TitleLabel" type="Label" parent="." unique_id=841138876]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 71.0
+offset_bottom = 41.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+text = "Игра окончена!"
+
+[node name="NameInput" type="LineEdit" parent="." unique_id=823297501]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 256.0
+offset_right = 144.0
+offset_bottom = 296.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_k7opi")
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=1908842521]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 48.0
+offset_right = 71.0
+offset_bottom = 73.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+text = "Счет:"
+
+[node name="BreakdownLabel" type="Label" parent="." unique_id=974131848]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 80.0
+offset_right = 82.0
+offset_bottom = 105.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+text = "Стены"
+
+[node name="SaveButton" type="Button" parent="." unique_id=1638548510]
+layout_mode = 0
+offset_left = 224.0
+offset_top = 256.0
+offset_right = 328.0
+offset_bottom = 296.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_idrjw")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_gitt2")
+theme_override_styles/hover = SubResource("StyleBoxFlat_n7cjv")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_uptc2")
+text = "Сохранить"
+
+[node name="SkipButton" type="Button" parent="." unique_id=1332171098]
+layout_mode = 0
+offset_left = 368.0
+offset_top = 256.0
+offset_right = 486.0
+offset_bottom = 296.0
+theme_override_fonts/font = ExtResource("1_0a2ju")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_luhwu")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_y50im")
+theme_override_styles/hover = SubResource("StyleBoxFlat_ncubt")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_leipk")
+text = "Пропустить"

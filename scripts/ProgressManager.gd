@@ -83,19 +83,18 @@ func _process(delta: float) -> void:
 				truck.status = "idle"
 				truck.task = null
 				truck.progress = 0.0
-				
 				var ore_amount = truck.get("ore", 0)
 				var ore_type = truck.get("ore_type", "")
 				if ore_amount > 0 and ore_type != "":
+					# <<< ИСПРАВЛЕНО: добавляем землю в очередь фабрики
+					# Фабрика сама переработает по 10 кг и даст 1-3 руды за партию
 					Global.add_to_factory_queue(ore_amount, ore_type)
-					truck["ore"] = 0
-					truck["ore_type"] = ""
-					print("Грузовик #", truck.id, " разгрузил ", ore_amount, " кг ", ore_type, " на фабрике")
-				
+					print("Грузовик #", truck.id, " разгрузил ", ore_amount, " кг земли (", ore_type, ") в очередь фабрики")
+				truck["ore"] = 0
+				truck["ore_type"] = ""
 				truck["location"] = "parking"
 				truck["location_id"] = null
 				print("Грузовик #", truck.id, " едет на парковку")
-				
 				truck.status = "traveling"
 				truck.task = "go_to_parking"
 				truck.progress = 0.0
@@ -154,7 +153,6 @@ func find_free_cell(level_data: Dictionary):
 	var floor = level_data.get("floor", [])
 	if floor.is_empty():
 		return null
-	
 	var max_x = 0
 	var max_y = 0
 	for cell in floor:
@@ -162,15 +160,18 @@ func find_free_cell(level_data: Dictionary):
 			max_x = cell.x
 		if cell.y > max_y:
 			max_y = cell.y
-	
 	var occupied = {}
+	# Транспорт
 	for truck in level_data.get("trucks", []):
 		var cell = Vector2i(truck["cell"][0], truck["cell"][1])
 		occupied[cell] = true
 	for excavator in level_data.get("excavators", []):
 		var cell = Vector2i(excavator["cell"][0], excavator["cell"][1])
 		occupied[cell] = true
-	
+	# <<< НОВОЕ: генераторы
+	for gen in level_data.get("generators", []):
+		var cell = Vector2i(gen["cell"][0], gen["cell"][1])
+		occupied[cell] = true
 	for y in range(1, max_y):
 		for x in range(1, max_x):
 			var cell = Vector2i(x, y)

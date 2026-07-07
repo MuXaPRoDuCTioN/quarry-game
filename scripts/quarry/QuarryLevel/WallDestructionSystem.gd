@@ -236,23 +236,20 @@ func destroy_wall_good(cell: Vector2i, frequency: int, accuracy: float):
 
 func destroy_wall_medium(cell: Vector2i, frequency: int, accuracy: float):
 	print("Среднее попадание! +-50 Гц")
-	
 	var wall_tiles = level_data.get("wall_tiles", {})
 	var rock_type_id = wall_tiles.get(cell, 0)
-	
 	destroy_single_wall(cell, frequency, accuracy)
 	spawn_rubble(cell, frequency, accuracy * 0.3, rock_type_id)
-	
 	var radius_1_walls = get_walls_in_radius(cell, 1)
 	for wall_cell in radius_1_walls:
+		# <<< ИСПРАВЛЕНО: берём rock_type_id от каждой конкретной стены
+		var wall_rock_type_id = wall_tiles.get(wall_cell, 0)
 		destroy_single_wall(wall_cell, frequency, accuracy * 0.3)
-		spawn_rubble(wall_cell, frequency, accuracy * 0.3, rock_type_id)
-	
+		spawn_rubble(wall_cell, frequency, accuracy * 0.3, wall_rock_type_id)
 	var radius_2_cells = get_floor_cells_in_radius(cell, 2)
 	for floor_cell in radius_2_cells:
 		if is_cell_free(floor_cell):
 			spawn_rubble(floor_cell, frequency, accuracy * 0.3, rock_type_id)
-	
 	spawn_additional_rubbles()
 
 
@@ -262,8 +259,9 @@ func destroy_single_wall(cell: Vector2i, frequency: int, accuracy: float):
 	walls.erase(cell)
 	level_data["walls"] = walls
 	Global.level_state[current_level] = level_data
-	
 	wall_destroyed.emit(cell, frequency, accuracy)
+	# <<< НОВОЕ: начисляем очки за разрушение стены
+	Global.add_wall_score(accuracy)
 
 
 func get_same_rock_walls(start_cell: Vector2i, rock_type_id: int, max_distance: int) -> Array:
@@ -350,27 +348,20 @@ func get_floor_cells_in_radius(center: Vector2i, radius: int) -> Array:
 func spawn_additional_rubbles():
 	if current_level < 8:
 		return
-	
 	var level_diff = current_level - 8
-	
 	var base_chance = 0.3 + (level_diff * 0.1)
 	base_chance = clamp(base_chance, 0.3, 0.9)
-	
 	var min_count = 1 + floor(level_diff / 2)
 	var max_count = 2 + floor((level_diff + 1) / 2)
 	min_count = clamp(min_count, 1, 8)
 	max_count = clamp(max_count, 2, 10)
-	
 	if randf() > base_chance:
 		return
-	
 	var count = randi_range(min_count, max_count)
 	print("Дополнительные кучи: шанс ", base_chance * 100, "%, количество ", count)
-	
 	var floor_cells = level_data.get("floor", [])
 	var walls = level_data.get("walls", [])
 	var rubbles = level_data.get("rubbles", [])
-	
 	var valid_cells = []
 	for cell in floor_cells:
 		if cell.x == 0 or cell.y == 0 or cell.x == level_size.x - 1 or cell.y == level_size.y - 1:
@@ -386,40 +377,36 @@ func spawn_additional_rubbles():
 				break
 		if has_gen:
 			continue
-		
 		valid_cells.append(cell)
-	
 	if valid_cells.is_empty():
 		print("Нет свободных клеток для дополнительных куч!")
 		return
-	
 	valid_cells.shuffle()
 	var selected_cells = []
 	for i in range(min(count, valid_cells.size())):
 		selected_cells.append(valid_cells[i])
 	
-	var rock_type_id = 0
-	var rock = Global.rock_types.get(rock_type_id, Global.rock_types[0])
+	var wall_tiles = level_data.get("wall_tiles", {})
 	
 	for cell in selected_cells:
-		# Проверяем транспорт и УДАЛЯЕМ его ДО спавна кучи
 		var vehicle_id = get_vehicle_at_cell(cell)
 		if vehicle_id != -1:
 			_remove_vehicle_from_level(vehicle_id)
 			print("Транспорт #", vehicle_id, " удалён перед спавном кучи в клетке ", cell)
 		
+		# <<< ИСПРАВЛЕНО: определяем rock_type_id по ближайшей стене
+		var rock_type_id = _get_nearest_wall_rock_type(cell)
+		var rock = Global.rock_types.get(rock_type_id, Global.rock_types[0])
+		
 		var weight = randi_range(1, 3) * 10
 		weight = int(weight * rock["weight_multiplier"])
 		weight = round(weight / 10.0) * 10
 		weight = clamp(weight, 10, 30)
-		
 		var rubble_tiles = level_data.get("rubble_tiles", {})
 		rubble_tiles[cell] = rock_type_id
 		level_data["rubble_tiles"] = rubble_tiles
-		
 		rubble_tile_map.set_cell(cell, 0, Vector2i(rock_type_id, 2))
 		level_data["rubbles"].append(cell)
-		
 		var rubble_data = {
 			"cell": cell,
 			"weight": weight,
@@ -428,11 +415,22 @@ func spawn_additional_rubbles():
 			"rock_type_id": rock_type_id
 		}
 		Global.rubbles.append(rubble_data)
-		
 		rubble_spawned.emit(cell, weight)
 		Global.level_state[current_level] = level_data
-		
-		print("Дополнительная куча (известняк) появилась в клетке ", cell, " весом ", weight, " кг")
+		print("Дополнительная куча (", rock["name"], ") появилась в клетке ", cell, " весом ", weight, " кг")
+
+# <<< НОВОЕ: определяем тип породы по ближайшей стене
+func _get_nearest_wall_rock_type(cell: Vector2i) -> int:
+	var wall_tiles = level_data.get("wall_tiles", {})
+	var walls = level_data.get("walls", [])
+	var min_dist = 999
+	var nearest_rock_id = 0
+	for wall_cell in walls:
+		var dist = abs(cell.x - wall_cell.x) + abs(cell.y - wall_cell.y)
+		if dist < min_dist:
+			min_dist = dist
+			nearest_rock_id = wall_tiles.get(wall_cell, 0)
+	return nearest_rock_id
 
 
 func spawn_rubble(cell: Vector2i, frequency: int, accuracy: float, rock_type_id: int = 0):
@@ -514,26 +512,29 @@ func get_vehicle_at_cell(cell: Vector2i) -> int:
 func is_cell_free(cell: Vector2i) -> bool:
 	if cell.x < 1 or cell.x >= level_size.x - 1 or cell.y < 1 or cell.y >= level_size.y - 1:
 		return false
-	
 	var is_floor = false
 	for floor_cell in level_data.get("floor", []):
 		if floor_cell == cell:
 			is_floor = true
 			break
-	
 	if not is_floor:
 		return false
-	
 	if level_data.get("walls", []).has(cell):
 		return false
-	
 	if level_data.get("rubbles", []).has(cell):
 		return false
-	
 	for gen in generators.values():
 		if gen.cell == cell:
 			return false
-	
+	# <<< НОВОЕ: проверка транспорта
+	for truck in level_data.get("trucks", []):
+		var truck_cell = Vector2i(truck.get("cell", [0, 0])[0], truck.get("cell", [0, 0])[1])
+		if truck_cell == cell:
+			return false
+	for excavator in level_data.get("excavators", []):
+		var excavator_cell = Vector2i(excavator.get("cell", [0, 0])[0], excavator.get("cell", [0, 0])[1])
+		if excavator_cell == cell:
+			return false
 	return true
 
 

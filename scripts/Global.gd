@@ -10,15 +10,18 @@ var vehicle_id_counter = 0
 var is_on_level = false
 
 
-# Лимиты на технику
 var MAX_TRUCKS = 5
 var MAX_EXCAVATORS = 3
 
 
-var rubbles = []  # [{cell: Vector2i, weight: int, remaining: int, rock_type_id: int}]
+var trucks_bought_total: int = 0
+var excavators_bought_total: int = 0
+
+
+var rubbles = [] 
 var factory_queue_weight = 0
-var factory_queue = []  # [{"weight": int, "ore_type": String}]
-var factory_processing = null  # {"weight": int, "progress": float, "ore_type": String}
+var factory_queue = [] 
+var factory_processing = null 
 var FACTORY_PROCESSING_SPEED = 2.0
 
 
@@ -29,47 +32,30 @@ var storage = {
 }
 
 
-# Данные о руде в зависимости от породы кучи
 var rubble_ore_data = {
-	0: {  
-		"coal": 1.0,
-		"iron": 0.0,
-		"gold": 0.0
-	},
-	1: {  
-		"coal": 0.7,
-		"iron": 0.3,
-		"gold": 0.0
-	},
-	2: { 
-		"coal": 0.25,
-		"iron": 0.7,
-		"gold": 0.05
-	},
-	3: { 
-		"coal": 0.0,
-		"iron": 0.5,
-		"gold": 0.5
-	}
+	0: { "coal": 1.0, "iron": 0.0, "gold": 0.0 },
+	1: { "coal": 0.5, "iron": 0.5, "gold": 0.0 },
+	2: { "coal": 0.3, "iron": 0.6, "gold": 0.1 },
+	3: { "coal": 0.0, "iron": 0.5, "gold": 0.5 }
 }
 
 
 var ore_data = {
 	"gold": {
 		"name": "Золото",
-		"price": 300,  # было 100
+		"price": 300,
 		"atlas_region": Rect2(0, 0, 64, 64),
 		"icon": null
 	},
 	"iron": {
 		"name": "Железо",
-		"price": 100,  # было 50
+		"price": 100,
 		"atlas_region": Rect2(64, 0, 64, 64),
 		"icon": null
 	},
 	"coal": {
 		"name": "Уголь",
-		"price": 50,  # было 25
+		"price": 50,
 		"atlas_region": Rect2(128, 0, 64, 64),
 		"icon": null
 	}
@@ -117,6 +103,21 @@ var vehicle_texture_path = load("res://assets/textures/icons/Vehicles.png")
 var exo2_font: FontFile
 
 
+var current_score: int = 0
+var score_breakdown: Dictionary = {
+	"walls_perfect": 0,
+	"walls_good": 0,
+	"walls_medium": 0,
+	"levels_completed": 0,
+	"time_bonus": 0,
+	"money_bonus": 0
+}
+var game_start_time: float = 0.0
+var level_start_time: float = 0.0
+var levels_completed: int = 0
+signal score_changed(points: int, reason: String)
+
+
 var vehicle_templates = {
 	"truck": {
 		"name": "Грузовик",
@@ -140,12 +141,13 @@ var vehicle_templates = {
 
 
 var digging_progress = {}
-
-
 var vehicles = {
 	"trucks": [],
 	"excavators": []
 }
+
+
+var is_tutorial: bool = false
 
 
 func _ready() -> void:
@@ -156,16 +158,13 @@ func _ready() -> void:
 			ore_texture.atlas = ore_texture_path
 			ore_texture.region = data["atlas_region"]
 			data["icon"] = ore_texture
-		
 		for vehicle in vehicle_templates:
 			var data = vehicle_templates[vehicle]
 			var vehicle_texture = AtlasTexture.new()
 			vehicle_texture.atlas = vehicle_texture_path
 			vehicle_texture.region = data["atlas_region"]
 			data["icon"] = vehicle_texture
-	
 	exo2_font = load("res://assets/fonts/Exo2-VariableFont_wght.ttf") as FontFile
-	
 	set_process(true)
 
 
@@ -194,8 +193,22 @@ func reset_game():
 	digging_progress.clear()
 	is_on_level = false
 	
+	trucks_bought_total = 0
+	excavators_bought_total = 0
 	print("=== НОВАЯ ИГРА ГОТОВА ===")
 	print("Деньги: ", money)
+	
+	# Сброс счёта при новой игре
+	current_score = 0
+	score_breakdown = {
+		"walls_perfect": 0,
+		"walls_good": 0,
+		"walls_medium": 0,
+		"levels_completed": 0,
+		"time_bonus": 0,
+		"money_bonus": 0
+	}
+	levels_completed = 0
 
 
 func add_ore(ore_id: String, amount: int):
@@ -233,24 +246,32 @@ func can_buy_vehicle(type: String) -> bool:
 
 func get_vehicle_price(type: String) -> int:
 	var base_price = vehicle_templates[type]["price"]
-	var count = get_vehicle_count(type)
+	# Используем общий счётчик купленных, а не текущее количество
+	var count = trucks_bought_total if type == "truck" else excavators_bought_total
 	# Каждый следующий транспорт на 50% дороже
-	# 1-й: base_price, 2-й: base_price * 1.5, 3-й: base_price * 2.25, и т.д.
 	var multiplier = pow(1.5, count)
 	return int(base_price * multiplier)
 
 
 func buy_vehicle(type: String) -> bool:
+	# === ЗАЩИТА ОТ ДУРАКА: в обучении только 1 грузовик + 1 экскаватор ===
+	if is_tutorial:
+		var trucks_count = vehicles["trucks"].size()
+		var excavators_count = vehicles["excavators"].size()
+		if type == "truck" and trucks_count >= 1:
+			print("[Tutorial] Нельзя купить больше 1 грузовика в обучении!")
+			return false
+		if type == "excavator" and excavators_count >= 1:
+			print("[Tutorial] Нельзя купить больше 1 экскаватора в обучении!")
+			return false
 	if not can_buy_vehicle(type):
 		print("Достигнут лимит ", type, "ов! Максимум: ", get_max_vehicles(type))
 		return false
-	
 	var price = get_vehicle_price(type)
 	if money >= price:
 		money -= price
 		vehicle_id_counter += 1
 		var new_id = vehicle_id_counter
-		
 		if type == "truck":
 			vehicles["trucks"].append({
 				"id": new_id,
@@ -261,9 +282,11 @@ func buy_vehicle(type: String) -> bool:
 				"ore": 0,
 				"ore_type": "",
 				"capacity": vehicle_templates[type]["capacity"],
-				"location": "parking",   
-				"location_id": null         
+				"location": "parking",
+				"location_id": null
 			})
+			
+			trucks_bought_total += 1
 		elif type == "excavator":
 			vehicles["excavators"].append({
 				"id": new_id,
@@ -272,12 +295,14 @@ func buy_vehicle(type: String) -> bool:
 				"task": null,
 				"progress": 0.0,
 				"damage": vehicle_templates[type]["damage"],
-				"location": "parking",   
+				"location": "parking",
 				"location_id": null,
 				"is_full": false,
 				"ore_amount": 0,
 				"ore_type": ""
 			})
+			
+			excavators_bought_total += 1
 		return true
 	return false
 
@@ -291,30 +316,177 @@ func add_to_factory_queue(weight: int, ore_type: String):
 	print("Добавлено ", weight, " кг ", ore_type, " в очередь фабрики. Всего в очереди: ", factory_queue_weight)
 
 
+func _get_ore_from_dirt(dirt_type: String) -> String:
+	var rock_type_id = -1
+	for rock_id in rock_types:
+		if rock_types[rock_id]["name"].to_lower() == dirt_type:
+			rock_type_id = rock_id
+			break
+	if rock_type_id == -1:
+		return "coal"
+	var ore_table = rubble_ore_data.get(rock_type_id, rubble_ore_data[0])
+	var roll = randf()
+	var cumulative = 0.0
+	for ore_id in ore_table:
+		cumulative += ore_table[ore_id]
+		if roll <= cumulative:
+			return ore_id
+	return ore_table.keys()[0]
+
+
 func process_factory(delta):
 	if factory_processing == null and factory_queue.size() > 0:
 		var item = factory_queue[0]
 		var weight = min(10, item["weight"])
-		
 		if item["weight"] <= 10:
 			factory_queue.pop_front()
 		else:
 			item["weight"] -= 10
-		
 		factory_queue_weight -= weight
-		
 		factory_processing = {
 			"weight": weight,
 			"progress": 0.0,
 			"ore_type": item["ore_type"]
 		}
 		print("Начата переработка ", weight, " кг ", item["ore_type"], ". Осталось в очереди: ", factory_queue_weight)
-	
 	if factory_processing != null:
 		factory_processing["progress"] += delta * FACTORY_PROCESSING_SPEED
 		if factory_processing["progress"] >= factory_processing["weight"]:
-			var ore_type = factory_processing["ore_type"]
+			var dirt_type = factory_processing["ore_type"]
+			var ore_type = _get_ore_from_dirt(dirt_type)
 			var amount = 1 + randi_range(0, 2)
 			storage[ore_type] += amount
-			print("Переработано! Получено ", amount, " ", ore_type)
+			print("Переработано 10 кг ", dirt_type, " → получено ", amount, " ", ore_type)
 			factory_processing = null
+
+
+func start_new_game():
+	reset_game()
+	current_score = 0
+	score_breakdown = {
+		"walls_perfect": 0,
+		"walls_good": 0,
+		"walls_medium": 0,
+		"levels_completed": 0,
+		"time_bonus": 0,
+		"money_bonus": 0
+	}
+	game_start_time = Time.get_ticks_msec() / 1000.0
+	level_start_time = game_start_time
+	levels_completed = 0
+	print("=== НОВАЯ ИГРА ===")
+
+
+func add_score(amount: int, reason: String):
+	current_score += amount
+	print("[SCORE] +", amount, " (", reason, ") → всего: ", current_score)
+	emit_signal("score_changed", amount, reason)
+
+
+func add_wall_score(accuracy: float):
+	if is_tutorial:  
+		return
+	
+	var diff_threshold = 1.0 - accuracy
+	var points = 0
+	var reason = ""
+	if diff_threshold <= 0.01:  # ±10 Гц из 3000
+		points = 500
+		reason = "perfect wall"
+		score_breakdown["walls_perfect"] += 1
+	elif diff_threshold <= 0.025:  # ±25 Гц
+		points = 300
+		reason = "good wall"
+		score_breakdown["walls_good"] += 1
+	elif diff_threshold <= 0.05:  # ±50 Гц
+		points = 100
+		reason = "medium wall"
+		score_breakdown["walls_medium"] += 1
+	if points > 0:
+		add_score(points, reason)
+
+
+func complete_level():
+	if is_tutorial: 
+		return
+	
+	var elapsed = (Time.get_ticks_msec() / 1000.0) - level_start_time
+	# Бонус за прохождение уровня
+	add_score(1000, "level completed")
+	score_breakdown["levels_completed"] += 1
+	levels_completed += 1
+	# Бонус за время
+	var time_bonus = 0
+	if elapsed < 300:  # меньше 5 минут
+		time_bonus = 500 - int(elapsed * 10)
+		time_bonus = max(time_bonus, 0)
+	if time_bonus > 0:
+		add_score(time_bonus, "time bonus")
+		score_breakdown["time_bonus"] += time_bonus
+	# Обновляем время начала следующего уровня
+	level_start_time = Time.get_ticks_msec() / 1000.0
+
+
+func calculate_final_score() -> int:
+	if is_tutorial:  
+		return 0
+	
+	# Бонус за оставшиеся деньги
+	var money_bonus = int(money / 10.0)
+	if money_bonus > 0:
+		add_score(money_bonus, "money bonus")
+		score_breakdown["money_bonus"] = money_bonus
+	return current_score
+
+
+func is_game_over() -> bool:
+	# Если денег хватает на что угодно — игра не окончена
+	var next_level = purchased_levels.size() + 1
+	var level_price = 200 + (next_level - 1) * 100
+	if money >= level_price:
+		return false
+	if money >= get_vehicle_price("truck") and vehicles["trucks"].size() < MAX_TRUCKS:
+		return false
+	if money >= get_vehicle_price("excavator") and vehicles["excavators"].size() < MAX_EXCAVATORS:
+		return false
+	
+	# Если есть непройденные купленные уровни и есть техника — игра не окончена
+	var completed = get_completed_levels()
+	for level in purchased_levels:
+		if not completed.has(level):
+			# Есть непройденный уровень — проверяем, есть ли техника
+			if vehicles["trucks"].size() > 0 and vehicles["excavators"].size() > 0:
+				return false
+	
+	# Ничего нельзя сделать — игра окончена
+	return true
+
+
+func is_level_completed(level: int) -> bool:
+	if not level_state.has(level):
+		return false
+	return level_state[level].get("completed", false)
+
+
+func get_completed_levels() -> Array:
+	var result = []
+	for level in level_state:
+		if level_state[level].get("completed", false):
+			result.append(level)
+	return result
+
+
+func check_level_completion(level: int) -> bool:
+	if not level_state.has(level):
+		return false
+	var data = level_state[level]
+	var walls = data.get("walls", [])
+	var rubbles = data.get("rubbles", [])
+	if walls.is_empty() and rubbles.is_empty():
+		if not data.get("completed", false):
+			data["completed"] = true
+			level_state[level] = data
+			complete_level()
+			print("[LEVEL] Уровень ", level, " пройден!")
+			return true
+	return false

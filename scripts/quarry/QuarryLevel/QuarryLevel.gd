@@ -46,6 +46,9 @@ var EXCAVATOR_TILE = Vector2i(0, 0)
 @onready var vehicles_button = $CanvasLayer/UIPanel/VehiclesButton
 @onready var shop_button = $CanvasLayer/UIPanel/ShopButton
 
+# В начале файла, рядом с другими сигналами
+signal resonance_completed(wall_cell: Vector2i)
+signal resonance_failed()  # <<< НОВОЕ
 
 var QuarryGenerator = preload("res://scripts/quarry/QuarryLevel/QuarryGenerator.gd")
 var generator
@@ -102,6 +105,7 @@ var GeneratorSetupWindow = preload("res://scenes/uis/GeneratorSetupWindow.tscn")
 var gen_setup_instance
 var WaveAnimation = preload("res://scripts/quarry/QuarryLevel/WaveAnimation.gd")
 var wave_animation_instance
+var TutorialLevel = preload("res://scripts/quarry/QuarryLevel/TutorialLevel.gd")
 
 
 var wall_target_frequencies: Dictionary = {}
@@ -111,6 +115,7 @@ var wall_frequency_guessed: Dictionary = {}  # запоминаем, для ка
 var generator_placement_mode: bool = false
 var generator_list: Array = []
 var is_generator_animation_running: bool = false
+var correctly_guessed_frequencies: Dictionary = {}  # cell -> true/false
 
 
 var hover_sprite: Sprite2D = null
@@ -125,7 +130,21 @@ func _ready():
 	current_level = Global.current_level
 	Global.is_on_level = true
 	
-	if not Global.level_state.has(current_level):
+	# <<< НОВОЕ: если уровень уже пройден — сразу выкидываем (только вне обучения)
+	if not Global.is_tutorial and Global.is_level_completed(current_level):
+		print("[LEVEL] Уровень ", current_level, " уже пройден! Возвращаемся на карту.")
+		Global.is_on_level = false
+		get_tree().change_scene_to_file("res://scenes/quarry/QuarryMap.tscn")
+		return
+	
+	var tutorial_level_size = Vector2(12, 6)
+	if Global.is_tutorial and current_level == 1:
+		var tutorial_level = TutorialLevel.new()
+		tutorial_level.generate_tutorial_level()
+		print("Загружен учебный уровень")
+		if $Camera2D:
+			$Camera2D.set_level_size(tutorial_level_size)
+	elif not Global.level_state.has(current_level):
 		generator = QuarryGenerator.new()
 		generator.generate(current_level)
 		print("Сгенерирован уровень ", str(current_level))
@@ -326,6 +345,9 @@ func _process(delta: float) -> void:
 	else:
 		if hover_sprite:
 			hover_sprite.visible = false
+	
+	if not Global.is_tutorial:
+		check_level_completion()
 
 
 func draw_quarry():
@@ -488,6 +510,13 @@ func _input(event: InputEvent) -> void:
 						return
 				
 				if wall_tile_map.get_cell_source_id(cell) != -1:
+					# <<< НОВОЕ: запрет клика на кимберлит в обучении до шага SUPER_RESONANCE_SETUP
+					if Global.is_tutorial and cell == Vector2i(9, 3):
+						var tm = get_node_or_null("/root/TutorialManager")
+						if tm and tm.has_method("can_click_kimberlite"):
+							if not tm.can_click_kimberlite():
+								print("[Tutorial] Кимберлит пока недоступен — сначала разрушим известняк")
+								return
 					if level_data_has_wall(cell):
 						if not is_wall_accessible(cell):
 							print("Эта стена окружена другими стенами! Сначала разрушьте соседние стены.")
@@ -702,9 +731,10 @@ func _on_wave_animation_finished(result: Dictionary):
 		print("Разрушено стен: ", result.destroyed_walls.size())
 		for wall_data in result.destroyed_walls:
 			wall_destruction_system.destroy_wall_by_frequency(
-				wall_data.cell, 
+				wall_data.cell,
 				wall_data.frequency
 			)
+			emit_signal("resonance_completed", wall_data.cell)
 			if wall_target_frequencies.has(wall_data.cell):
 				wall_target_frequencies.erase(wall_data.cell)
 			if wall_frequency_guessed.has(wall_data.cell):
@@ -713,17 +743,14 @@ func _on_wave_animation_finished(result: Dictionary):
 				wall_auto_discovered.erase(wall_data.cell)
 	else:
 		print("Ни одна стена не была разрушена")
-	
+		emit_signal("resonance_failed")  # <<< ИЗМЕНЕНО: вместо resonance_completed
 	wall_auto_discovered.clear()
-	
 	remove_all_generators()
-	
 	is_generator_animation_running = false
 	place_generator_button.disabled = false
 	is_window_open = false
 	unlock_all_buttons()
 	update_start_button_state()
-	
 	draw_quarry()
 
 
@@ -856,12 +883,10 @@ func open_frequency_window():
 	if wall_freq == 0:
 		print("Ошибка: частота для стены не найдена!")
 		return
-	
 	block_all_buttons()
 	freq_window_instance = FrequencyWindow.instantiate()
 	popup_container.add_child(freq_window_instance)
 	is_window_open = true
-	
 	freq_window_instance.setup(selected_cell, wall_freq)
 	freq_window_instance.connect("frequency_selected", _on_frequency_selected_for_wall)
 	freq_window_instance.connect("window_closed", window_closed)
@@ -871,6 +896,15 @@ func _on_frequency_selected_for_wall(freq, status):
 	var target_frequency = freq
 	wall_target_frequencies[selected_cell] = target_frequency
 	wall_frequency_guessed[selected_cell] = true
+	
+	# <<< НОВОЕ: запоминаем, правильно ли угадал частоту
+	var level_data = Global.level_state.get(current_level, {})
+	var wall_freqs = level_data.get("wall_frequencies", {})
+	if wall_freqs.has(selected_cell) and wall_freqs[selected_cell] == freq:
+		correctly_guessed_frequencies[selected_cell] = true
+	else:
+		correctly_guessed_frequencies[selected_cell] = false
+	
 	print("Для стены в клетке ", selected_cell, " определена целевая частота: ", target_frequency)
 	window_closed()
 
@@ -944,17 +978,25 @@ func get_vehicle_at_cell(cell: Vector2i):
 func select_vehicle_for_move(vehicle_data, cell: Vector2i):
 	if is_generator_animation_running:
 		return
-	
 	if vehicle_data.get("type") == "excavator" and is_vehicle_busy(vehicle_data.get("id")):
 		print("Экскаватор занят копанием!")
 		return
-	
+	# <<< НОВОЕ: запрет перемещения грузовика во время загрузки
+	if vehicle_data.get("type") == "truck" and is_truck_loading(vehicle_data.get("id")):
+		print("Грузовик загружается! Дождитесь окончания загрузки.")
+		return
 	if selected_vehicle_for_move != null:
 		unselect_vehicle()
-	
 	selected_vehicle_for_move = vehicle_data
 	highlight_vehicle(cell, true)
 	print("Выбран транспорт #", vehicle_data.get("id"))
+
+# <<< НОВОЕ: проверка, загружается ли грузовик
+func is_truck_loading(truck_id: int) -> bool:
+	for truck in Global.vehicles.get("trucks", []):
+		if truck.get("id") == truck_id:
+			return truck.get("status") == "loading"
+	return false
 
 
 func unselect_vehicle():
@@ -1066,7 +1108,6 @@ func _on_vehicle_progress(vehicle_id, progress):
 		bar.size = Vector2(60, 16)
 		bar.visible = true
 		bar.z_index = 25
-		
 		if progress_style_bg:
 			bar.add_theme_stylebox_override("slider", progress_style_bg)
 		if progress_style_fill:
@@ -1075,18 +1116,18 @@ func _on_vehicle_progress(vehicle_id, progress):
 		bar.add_theme_font_size_override("font_size", 11)
 		if Global.exo2_font:
 			bar.add_theme_font_override("font", Global.exo2_font)
-		
 		add_child(bar)
 		move_progress_bars[vehicle_id] = bar
 	
 	var bar = move_progress_bars[vehicle_id]
 	bar.value = progress * 100
 	
+	# <<< ИСПРАВЛЕНО: корректно определяем тип транспорта
 	var cell = movement.get_vehicle_cell(vehicle_id, "truck")
-	if cell == null:
+	if cell == Vector2i(-1, -1):  # было: if cell == null
 		cell = movement.get_vehicle_cell(vehicle_id, "excavator")
 	
-	if cell != null:
+	if cell != Vector2i(-1, -1):  # было: if cell != null
 		bar.position = Vector2(cell.x * 64 + 2, cell.y * 64 - 20)
 
 
@@ -1295,7 +1336,8 @@ func start_unloading(excavator_id: int, truck_id: int):
 		return
 	
 	if truck.get("ore", 0) > 0 and truck.get("ore_type", "") != ore_type:
-		print("Грузовик уже везёт другую руду (", truck.get("ore_type"), ")! Сначала разгрузите его на фабрику.")
+		# <<< ИСПРАВЛЕНО: ore_type теперь = тип земли (породы)
+		print("В грузовике уже земля другого типа (", truck.get("ore_type"), ")! Сначала разгрузите его на фабрику.")
 		return
 	
 	var truck_on_level = false
@@ -1406,6 +1448,10 @@ func _on_wall_destroyed(cell: Vector2i, frequency: int, accuracy: float):
 		wall_target_frequencies.erase(cell)
 	if wall_frequency_guessed.has(cell):
 		wall_frequency_guessed.erase(cell)
+	
+	# НЕ вызываем TutorialManager.on_wall_destroyed() здесь!
+	# Проверка на разрушение стены теперь полностью в TutorialManager через подсчет стен
+	
 	draw_quarry()
 
 
@@ -1417,3 +1463,130 @@ func _on_rubble_spawned(cell: Vector2i, weight: int):
 func _on_vehicle_destroyed(vehicle_id: int):
 	print("Транспорт #", vehicle_id, " уничтожен!")
 	draw_quarry()
+
+
+func is_frequency_guessed_for_tutorial() -> bool:
+	# Проверяем, есть ли хоть одна стена с угаданной частотой
+	return wall_frequency_guessed.size() > 0
+
+
+func get_generators_count() -> int:
+	return generator_list.size()
+
+
+func are_generators_setup() -> bool:
+	for gen_data in generator_list:
+		if gen_data.frequency == 0:
+			return false
+	return generator_list.size() >= 2
+
+
+func was_frequency_guessed_correctly(cell: Vector2i) -> bool:
+	# <<< ИСПРАВЛЕНО: используем отдельный флаг, который не очищается
+	return correctly_guessed_frequencies.get(cell, false)
+
+
+func get_correct_frequency(cell: Vector2i) -> int:
+	var level_data = Global.level_state.get(current_level, {})
+	var wall_freqs = level_data.get("wall_frequencies", {})
+	return wall_freqs.get(cell, 0)
+
+
+func is_frequency_guessed_for_cell(cell: Vector2i) -> bool:
+	return wall_frequency_guessed.has(cell)
+
+
+func check_level_completion() -> void:
+	var level_data = Global.level_state.get(current_level, {})
+	var walls = level_data.get("walls", [])
+	var rubbles = level_data.get("rubbles", [])
+	if walls.is_empty() and rubbles.is_empty():
+		# Уровень пройден!
+		if not level_data.get("completed", false):
+			level_data["completed"] = true
+			Global.level_state[current_level] = level_data
+			Global.complete_level()
+			print("[LEVEL] Уровень ", current_level, " пройден!")
+			# Показываем окно завершения
+			_on_level_completed()
+
+
+func _on_level_completed() -> void:
+	print("[LEVEL] Уровень ", current_level, " полностью пройден!")
+	block_all_buttons()
+	# <<< ИСПРАВЛЕНО: добавлен await
+	var completion_window = await _create_level_completion_window()
+	popup_container.add_child(completion_window)
+	is_window_open = true
+
+func _create_level_completion_window() -> Panel:
+	var panel = Panel.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color("#0D1426")
+	style.corner_radius_top_left = 16
+	style.corner_radius_top_right = 16
+	style.corner_radius_bottom_left = 16
+	style.corner_radius_bottom_right = 16
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color("#FFD700")
+	# <<< НОВОЕ: добавляем внутренние отступы панели
+	style.content_margin_left = 40
+	style.content_margin_right = 40
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", style)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 15)
+	# <<< ИСПРАВЛЕНО: растягиваем на всю ширину
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = " Уровень пройден!"
+	title.add_theme_color_override("font_color", Color("#FFD700"))
+	title.add_theme_font_size_override("font_size", 24)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if Global.exo2_font:
+		title.add_theme_font_override("font", Global.exo2_font)
+	vbox.add_child(title)
+	
+	var desc = Label.new()
+	desc.text = "Все стены разрушены, все кучи собраны!\n\nВы возвращаетесь на карту."
+	desc.add_theme_color_override("font_color", Color("#E6F2FF"))
+	desc.add_theme_font_size_override("font_size", 16)
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if Global.exo2_font:
+		desc.add_theme_font_override("font", Global.exo2_font)
+	vbox.add_child(desc)
+	
+	var button = Button.new()
+	button.text = "Вернуться на карту"
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color("#264080")
+	btn_style.corner_radius_top_left = 8
+	btn_style.corner_radius_top_right = 8
+	btn_style.corner_radius_bottom_left = 8
+	btn_style.corner_radius_bottom_right = 8
+	button.add_theme_stylebox_override("normal", btn_style)
+	button.add_theme_color_override("font_color", Color("#E6F2FF"))
+	button.add_theme_font_size_override("font_size", 18)
+	if Global.exo2_font:
+		button.add_theme_font_override("font", Global.exo2_font)
+	button.pressed.connect(func():
+		window_closed()
+		Global.is_on_level = false
+		get_tree().change_scene_to_file("res://scenes/quarry/QuarryMap.tscn")
+	)
+	vbox.add_child(button)
+	
+	panel.size = Vector2(400, 250)
+	
+	await get_tree().process_frame
+	var viewport_size = get_viewport().get_visible_rect().size
+	panel.global_position = (viewport_size - panel.size) / 2
+	
+	return panel

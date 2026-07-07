@@ -4,8 +4,6 @@ extends Node
 signal digging_started(vehicle_id)
 signal digging_completed(level, vehicle_id, rubble_cell)
 signal digging_progress(vehicle_id, progress, cell)
-
-
 var is_digging = false
 var current_target = null
 var rubble_tile_map: TileMapLayer
@@ -39,9 +37,7 @@ func _process(delta: float) -> void:
 		current_target["rubble_index"] = actual_rubble_index
 	
 	current_target["progress"] += delta * DIGGING_SPEED
-	
 	var cell = get_excavator_cell(current_target["vehicle_id"])
-	
 	emit_signal("digging_progress", current_target["vehicle_id"], current_target["progress"] / 10.0, cell)
 	
 	if current_target["progress"] >= 10.0:
@@ -58,26 +54,41 @@ func _process(delta: float) -> void:
 			Global.rubbles.remove_at(current_target["rubble_index"])
 			print("Куча исчерпана и удалена! Осталось куч: ", Global.rubbles.size())
 		
-		var rock_type_id = rubble.get("rock_type_id", 0)
-		var ore_type = get_ore_from_rubble(rock_type_id)
-		
-		_set_excavator_full(vehicle_id, 10, ore_type)
-		
+		var dirt_type = _get_dirt_type_from_rock(rubble_cell)
+		_set_excavator_full(vehicle_id, 10, dirt_type)
 		emit_signal("digging_completed", level_to_update, vehicle_id, rubble_cell)
 		stop_digging()
 
 
-func get_ore_from_rubble(rock_type_id: int) -> String:
-	var ore_data = Global.rubble_ore_data.get(rock_type_id, Global.rubble_ore_data[0])
-	var rand = randf()
-	var cumulative = 0.0
+func _get_dirt_type_from_rock(rubble_cell: Vector2i) -> String:
+	var level_data = Global.level_state[current_level]
+	var wall_tiles = level_data.get("wall_tiles", {})
 	
-	for ore_type in ore_data:
-		cumulative += ore_data[ore_type]
-		if rand <= cumulative:
-			return ore_type
+	# Ищем ближайшую стену (в радиусе 3 клеток)
+	for wall_cell in level_data.get("walls", []):
+		var wall_tile_id = wall_tiles.get(wall_cell, -1)
+		if wall_tile_id != -1:
+			var dist = abs(rubble_cell.x - wall_cell.x) + abs(rubble_cell.y - wall_cell.y)
+			if dist <= 3:
+				var rock = Global.rock_types.get(wall_tile_id, Global.rock_types[0])
+				return rock["name"].to_lower()
 	
-	return "coal"
+	# Fallback: используем tile_id кучи
+	var rubble_tiles = level_data.get("rubble_tiles", {})
+	var rubble_tile_id = rubble_tiles.get(rubble_cell, 0)
+	var rock = Global.rock_types.get(rubble_tile_id, Global.rock_types[0])
+	return rock["name"].to_lower()
+
+
+func _set_excavator_full(vehicle_id: int, amount: int, dirt_type: String):
+	for ex in Global.vehicles["excavators"]:
+		if ex["id"] == vehicle_id:
+			ex["is_full"] = true
+			ex["ore_amount"] = amount
+			ex["ore_type"] = dirt_type  # Теперь это тип земли, а не руды
+			ex["status"] = "idle"
+			print("Экскаватор #", vehicle_id, " полный! (", amount, " кг земли: ", dirt_type, ")")
+			break
 
 
 func get_excavator_cell(vehicle_id: int):
@@ -86,17 +97,6 @@ func get_excavator_cell(vehicle_id: int):
 		if ex["id"] == vehicle_id:
 			return Vector2i(ex["cell"][0], ex["cell"][1])
 	return null
-
-
-func _set_excavator_full(vehicle_id: int, amount: int, ore_type: String):
-	for ex in Global.vehicles["excavators"]:
-		if ex["id"] == vehicle_id:
-			ex["is_full"] = true
-			ex["ore_amount"] = amount
-			ex["ore_type"] = ore_type
-			ex["status"] = "idle"
-			print("Экскаватор #", vehicle_id, " полный! (", amount, " кг ", ore_type, ")")
-			break
 
 
 func _remove_rubble_from_level(level: int, cell: Vector2i):
@@ -154,7 +154,6 @@ func start_digging(vehicle_id: int, rubble_cell: Vector2i):
 		"rubble_cell": rubble_cell,
 		"progress": 0.0
 	}
-	
 	print("Экскаватор #", vehicle_id, " начал копать")
 	emit_signal("digging_started", vehicle_id)
 
@@ -165,9 +164,8 @@ func stop_digging():
 			if ex["id"] == current_target["vehicle_id"]:
 				ex["status"] = "idle"
 				break
-	
-	is_digging = false
-	current_target = null
+		is_digging = false
+		current_target = null
 
 
 func is_busy() -> bool:

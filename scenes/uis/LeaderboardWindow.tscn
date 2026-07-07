@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://dkvxb0yfd1ify"]
+
+[ext_resource type="Script" uid="uid://d34nxomxfcbk5" path="res://scripts/uis/LeaderboardWindow/LeaderboardWindow.gd" id="1_6wj58"]
+[ext_resource type="FontFile" uid="uid://dfovmecwl15dd" path="res://assets/fonts/Exo2-VariableFont_wght.ttf" id="2_20eht"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_86n6e"]
+bg_color = Color(0.050980393, 0.078431375, 0.14901961, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.2, 0.4, 0.7019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_20eht"]
+bg_color = Color(0.14901961, 0.2509804, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mtwkp"]
+bg_color = Color(0.050980393, 0.14901961, 0.3019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i73nd"]
+bg_color = Color(0.2509804, 0.34901962, 0.6509804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lnfhe"]
+bg_color = Color(0.101960786, 0.14901961, 0.2509804, 1)
+
+[node name="LeaderboardWindow" type="Panel" unique_id=515828614]
+offset_right = 448.0
+offset_bottom = 320.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_86n6e")
+script = ExtResource("1_6wj58")
+
+[node name="TitleLabel" type="Label" parent="." unique_id=211757378]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 181.0
+offset_bottom = 41.0
+theme_override_fonts/font = ExtResource("2_20eht")
+theme_override_font_sizes/font_size = 20
+text = "Таблица лидеров"
+
+[node name="CloseButton" type="Button" parent="." unique_id=1190408360]
+layout_mode = 0
+offset_left = 344.0
+offset_top = 16.0
+offset_right = 431.0
+offset_bottom = 48.0
+theme_override_fonts/font = ExtResource("2_20eht")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_20eht")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_mtwkp")
+theme_override_styles/hover = SubResource("StyleBoxFlat_i73nd")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_lnfhe")
+text = "Закрыть"
+
+[node name="EntriesContainer" type="VBoxContainer" parent="." unique_id=1635045014]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 56.0
+offset_right = 432.0
+offset_bottom = 296.0
