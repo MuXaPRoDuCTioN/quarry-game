@@ -49,11 +49,10 @@ func _update_positions() -> void:
 
 
 func _process(_delta: float) -> void:
-	var to_remove = []
-	for i in range(active_notifications.size()):
+	var changed = false
+	for i in range(active_notifications.size() - 1, -1, -1):
 		if not is_instance_valid(active_notifications[i]):
-			to_remove.append(i)
-	for i in to_remove:
-		active_notifications.remove_at(i)
-	if to_remove.size() > 0:
+			active_notifications.remove_at(i)
+			changed = true
+	if changed:
 		_update_positions()

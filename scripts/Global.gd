@@ -63,37 +63,41 @@ var ore_data = {
 
 
 var rock_types = {
-	0: {
+	0: { # Известняк (мягкий)
 		"name": "Известняк",
-		"min_freq": 100,
-		"max_freq": 600,
+		"min_freq": 100, "max_freq": 200,
 		"color": Color(0.7, 0.7, 0.6),
-		"weight_multiplier": 1.0,
-		"min_level": 1
+		"weight_multiplier": 1.0, "min_level": 1,
+		"damping": 0.05,
+		"frequency_tolerance": 50.0,
+		"stress_threshold": 0.9
 	},
-	1: {
+	1: { # Кварцит (средний)
 		"name": "Кварцит",
-		"min_freq": 600,
-		"max_freq": 1300,
+		"min_freq": 200, "max_freq": 300,
 		"color": Color(0.9, 0.8, 0.7),
-		"weight_multiplier": 1.3,
-		"min_level": 3
+		"weight_multiplier": 1.3, "min_level": 3,
+		"damping": 0.05,
+		"frequency_tolerance": 25.0,
+		"stress_threshold": 1.8
 	},
-	2: {
+	2: { # Гематит (твёрдый)
 		"name": "Гематит",
-		"min_freq": 1300,
-		"max_freq": 2000,
+		"min_freq": 300, "max_freq": 400,
 		"color": Color(0.6, 0.3, 0.2),
-		"weight_multiplier": 1.6,
-		"min_level": 5
+		"weight_multiplier": 1.6, "min_level": 5,
+		"damping": 0.03,
+		"frequency_tolerance": 15.0,
+		"stress_threshold": 2.5
 	},
-	3: {
+	3: { # Кимберлит (очень твёрдый)
 		"name": "Кимберлит",
-		"min_freq": 2000,
-		"max_freq": 3000,
+		"min_freq": 400, "max_freq": 500,
 		"color": Color(0.3, 0.5, 0.8),
-		"weight_multiplier": 2.0,
-		"min_level": 8
+		"weight_multiplier": 2.0, "min_level": 8,
+		"damping": 0.02,
+		"frequency_tolerance": 8.0,
+		"stress_threshold": 4.0
 	}
 }
 
@@ -317,21 +321,38 @@ func add_to_factory_queue(weight: int, ore_type: String):
 
 
 func _get_ore_from_dirt(dirt_type: String) -> String:
+	print("[Factory] Получен тип породы: '", dirt_type, "'")
+	
 	var rock_type_id = -1
 	for rock_id in rock_types:
-		if rock_types[rock_id]["name"].to_lower() == dirt_type:
+		var rock_name = rock_types[rock_id]["name"].to_lower()
+		var dirt_lower = dirt_type.to_lower()
+		print("[Factory] Сравниваем: '", rock_name, "' с '", dirt_lower, "'")
+		if rock_name == dirt_lower:
 			rock_type_id = rock_id
 			break
+	
 	if rock_type_id == -1:
+		print("[Factory] Порода не найдена! Возвращаем уголь по умолчанию.")
 		return "coal"
+	
 	var ore_table = rubble_ore_data.get(rock_type_id, rubble_ore_data[0])
+	print("[Factory] Таблица руд для породы ", rock_type_id, ": ", ore_table)
+	
 	var roll = randf()
+	print("[Factory] Бросок кубика: ", roll)
+	
 	var cumulative = 0.0
 	for ore_id in ore_table:
 		cumulative += ore_table[ore_id]
+		print("[Factory] Проверяем ", ore_id, ": cumulative = ", cumulative)
 		if roll <= cumulative:
+			print("[Factory] Выпала руда: ", ore_id)
 			return ore_id
-	return ore_table.keys()[0]
+	
+	var fallback = ore_table.keys()[0]
+	print("[Factory] Fallback: ", fallback)
+	return fallback
 
 
 func process_factory(delta):
@@ -440,14 +461,23 @@ func calculate_final_score() -> int:
 
 
 func is_game_over() -> bool:
-	# Если денег хватает на что угодно — игра не окончена
+	# Считаем не только наличные деньги, но и всё, что можно выручить
+	# прямо сейчас, продав руду со склада - раньше это не учитывалось,
+	# и игра объявлялась оконченной, даже если на складе лежала руда,
+	# которой хватило бы на продолжение.
+	var potential_money = money
+	for ore_id in storage.keys():
+		if ore_data.has(ore_id):
+			potential_money += storage[ore_id] * ore_data[ore_id]["price"]
+	
+	# Если денег (с учётом возможной продажи руды) хватает на что угодно — игра не окончена
 	var next_level = purchased_levels.size() + 1
 	var level_price = 200 + (next_level - 1) * 100
-	if money >= level_price:
+	if potential_money >= level_price:
 		return false
-	if money >= get_vehicle_price("truck") and vehicles["trucks"].size() < MAX_TRUCKS:
+	if potential_money >= get_vehicle_price("truck") and vehicles["trucks"].size() < MAX_TRUCKS:
 		return false
-	if money >= get_vehicle_price("excavator") and vehicles["excavators"].size() < MAX_EXCAVATORS:
+	if potential_money >= get_vehicle_price("excavator") and vehicles["excavators"].size() < MAX_EXCAVATORS:
 		return false
 	
 	# Если есть непройденные купленные уровни и есть техника — игра не окончена
@@ -457,6 +487,14 @@ func is_game_over() -> bool:
 			# Есть непройденный уровень — проверяем, есть ли техника
 			if vehicles["trucks"].size() > 0 and vehicles["excavators"].size() > 0:
 				return false
+	
+	# Ещё не всё потеряно, если где-то в пути деньги, которые скоро появятся:
+	# земля едет на фабрику / уже в очереди / обрабатывается - из неё выйдет руда
+	if factory_queue.size() > 0 or factory_processing != null:
+		return false
+	for truck in vehicles.get("trucks", []):
+		if truck.get("ore", 0) > 0:
+			return false
 	
 	# Ничего нельзя сделать — игра окончена
 	return true

@@ -1,6 +1,4 @@
 extends Panel
-
-
 signal frequency_selected(generator_id: int, frequency: int)
 signal direction_selected(generator_id: int, direction: int)
 signal window_closed
@@ -15,22 +13,23 @@ var drag_offset: Vector2 = Vector2.ZERO
 var drag_start
 
 
-func setup(gen_id: int):
+func setup(gen_id: int, current_freq: int = 250, current_dir: int = 0):
 	generator_id = gen_id
+	selected_frequency = current_freq   # используем переданное значение
+	selected_direction = current_dir    # используем переданное значение
 	
-	selected_frequency = 250
-	selected_direction = 0
-	
-	$FrequencySlider.min_value = 10
+	# <<< ИСПРАВЛЕНО: диапазон 100-500, шаг 1
+	$FrequencySlider.min_value = 100
 	$FrequencySlider.max_value = 500
-	$FrequencySlider.value = 250
+	$FrequencySlider.step = 1
+	$FrequencySlider.value = current_freq
 	
 	$DirectionSelector.clear()
 	$DirectionSelector.add_item("Вверх ↑")
 	$DirectionSelector.add_item("Вправо →")
 	$DirectionSelector.add_item("Вниз ↓")
 	$DirectionSelector.add_item("Влево ←")
-	$DirectionSelector.selected = 0
+	$DirectionSelector.selected = current_dir  # используем переданное значение
 	
 	# Стилизуем OptionButton
 	var option_normal = StyleBoxFlat.new()
@@ -44,11 +43,9 @@ func setup(gen_id: int):
 	option_normal.border_width_top = 1
 	option_normal.border_width_bottom = 1
 	option_normal.border_color = Color("#1A2640")
-	
 	var option_hover = option_normal.duplicate()
 	option_hover.bg_color = Color("#1A2E59")
 	option_hover.border_color = Color("#3366B3")
-	
 	$DirectionSelector.add_theme_stylebox_override("normal", option_normal)
 	$DirectionSelector.add_theme_stylebox_override("hover", option_hover)
 	$DirectionSelector.add_theme_color_override("font_color", Color("#E6F2FF"))
@@ -71,24 +68,20 @@ func setup(gen_id: int):
 		popup_style.border_width_bottom = 1
 		popup_style.border_color = Color("#3366B3")
 		popup.add_theme_stylebox_override("panel", popup_style)
-		
 		var item_style = StyleBoxFlat.new()
 		item_style.bg_color = Color("#141F33")
 		item_style.corner_radius_top_left = 4
 		item_style.corner_radius_top_right = 4
 		item_style.corner_radius_bottom_left = 4
 		item_style.corner_radius_bottom_right = 4
-		
 		var item_hover = item_style.duplicate()
 		item_hover.bg_color = Color("#264080")
-		
 		popup.add_theme_stylebox_override("normal", item_style)
 		popup.add_theme_stylebox_override("hover", item_hover)
 		popup.add_theme_color_override("font_color", Color("#E6F2FF"))
 		popup.add_theme_font_size_override("font_size", 18)
 		if Global.exo2_font:
 			popup.add_theme_font_override("font", Global.exo2_font)
-		
 		popup.min_size.x = 150
 	
 	update_labels()
@@ -103,7 +96,6 @@ func setup(gen_id: int):
 
 func update_labels():
 	$FrequencyLabel.text = "Частота: " + str(selected_frequency) + " Гц"
-	
 	var directions = ["Вверх ↑", "Вправо →", "Вниз ↓", "Влево ←"]
 	var selected_dir = $DirectionSelector.selected
 	if selected_dir >= 0 and selected_dir < directions.size():
@@ -121,9 +113,8 @@ func _input(event: InputEvent) -> void:
 					is_dragging = true
 					drag_offset = global_position - mouse_pos
 					drag_start = mouse_pos
-			else:
-				is_dragging = false
-	
+				else:
+					is_dragging = false
 	if event is InputEventMouseMotion and is_dragging:
 		var mouse_pos = get_global_mouse_position()
 		global_position = mouse_pos + drag_offset
@@ -132,11 +123,9 @@ func _input(event: InputEvent) -> void:
 func center_window():
 	var viewport_size = get_viewport().get_visible_rect().size
 	var window_size = size
-	
 	if window_size.x == 0 and window_size.y == 0:
 		await get_tree().process_frame
 		window_size = size
-	
 	global_position = (viewport_size - window_size) / 2
 
 

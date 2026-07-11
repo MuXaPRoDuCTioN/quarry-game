@@ -61,19 +61,14 @@ func _process(delta: float) -> void:
 
 
 func _get_dirt_type_from_rock(rubble_cell: Vector2i) -> String:
+	for rubble in Global.rubbles:
+		if rubble["cell"] == rubble_cell:
+			var rock_type_id = rubble.get("rock_type_id", 0)
+			var rock = Global.rock_types.get(rock_type_id, Global.rock_types[0])
+			return rock["name"].to_lower()
+	
+	# Fallback: используем rubble_tiles
 	var level_data = Global.level_state[current_level]
-	var wall_tiles = level_data.get("wall_tiles", {})
-	
-	# Ищем ближайшую стену (в радиусе 3 клеток)
-	for wall_cell in level_data.get("walls", []):
-		var wall_tile_id = wall_tiles.get(wall_cell, -1)
-		if wall_tile_id != -1:
-			var dist = abs(rubble_cell.x - wall_cell.x) + abs(rubble_cell.y - wall_cell.y)
-			if dist <= 3:
-				var rock = Global.rock_types.get(wall_tile_id, Global.rock_types[0])
-				return rock["name"].to_lower()
-	
-	# Fallback: используем tile_id кучи
 	var rubble_tiles = level_data.get("rubble_tiles", {})
 	var rubble_tile_id = rubble_tiles.get(rubble_cell, 0)
 	var rock = Global.rock_types.get(rubble_tile_id, Global.rock_types[0])

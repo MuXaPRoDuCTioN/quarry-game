@@ -83,17 +83,17 @@ text = "Настройка генератора"
 
 [node name="CloseButton" type="Button" parent="UpperPanel" unique_id=458501081]
 layout_mode = 0
-offset_left = 280.0
-offset_top = 16.0
-offset_right = 368.0
-offset_bottom = 49.0
+offset_left = 16.0
+offset_top = 208.0
+offset_right = 104.0
+offset_bottom = 241.0
 theme_override_fonts/font = ExtResource("2_p2kvg")
 theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("StyleBoxFlat_kig6h")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_yfrkw")
 theme_override_styles/hover = SubResource("StyleBoxFlat_3gjbt")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_ucrjs")
-text = "Закрыть"
+text = "Удалить генератор"
 
 [node name="FrequencyLabel" type="Label" parent="." unique_id=26787220]
 layout_mode = 0

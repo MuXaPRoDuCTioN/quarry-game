@@ -1,10 +1,8 @@
 extends Node2D
 
-
 # ===== ТАЙЛЫ =====
 var FLOOR_TILE = Vector2i(0, 0)
 var BORDER_TILE = Vector2i(1, 0)
-
 
 # 4 породы стен (колонка 1)
 var WALL_TILES = {
@@ -14,7 +12,6 @@ var WALL_TILES = {
 	3: Vector2i(3, 1)   # Кимберлит
 }
 
-
 # 4 вида куч (колонка 2)
 var RUBBLE_TILES = {
 	0: Vector2i(0, 2),  # куча известняка
@@ -23,28 +20,32 @@ var RUBBLE_TILES = {
 	3: Vector2i(3, 2)   # куча кимберлита
 }
 
-
 var TRUCK_TILE = Vector2i(1, 0)
 var EXCAVATOR_TILE = Vector2i(0, 0)
 
-
 # ===== ОСТАЛЬНОЙ КОД =====
-
 @onready var wall_tile_map = $WallTileMap
 @onready var border_tile_map = $BorderTileMap
 @onready var rubble_tile_map = $RubbleTileMap
 @onready var popup_container = $CanvasLayer/PopupContainer
 @onready var vehicle_tile_map = $VehicleTileMap
 @onready var floor_tile_map = $FloorTileMap
-
 @onready var factory_progress_bar = $CanvasLayer/UIPanel/FactoryProgressBar
 @onready var factory_label = $CanvasLayer/UIPanel/FactoryLabel
-
 @onready var place_generator_button = $CanvasLayer/UIPanel/PlaceGeneratorButton
 @onready var start_generators_button = $CanvasLayer/UIPanel/StartGeneratorsButton
 @onready var storage_button = $CanvasLayer/UIPanel/StorageButton
 @onready var vehicles_button = $CanvasLayer/UIPanel/VehiclesButton
 @onready var shop_button = $CanvasLayer/UIPanel/ShopButton
+
+# <<< НОВОЕ: элементы управления генераторами в UIPanel
+@onready var frequency_slider = $CanvasLayer/UIPanel/FrequencySlider
+@onready var frequency_label = $CanvasLayer/UIPanel/FrequencyLabel
+@onready var direction_label = $CanvasLayer/UIPanel/DirectionLabel
+@onready var direction_right_button = $CanvasLayer/UIPanel/DirectionRightButton
+@onready var direction_left_button = $CanvasLayer/UIPanel/DirectionLeftButton
+@onready var direction_up_button = $CanvasLayer/UIPanel/DirectionUpButton
+@onready var direction_bottom_button = $CanvasLayer/UIPanel/DirectionBottomButton
 
 # В начале файла, рядом с другими сигналами
 signal resonance_completed(wall_cell: Vector2i)
@@ -58,20 +59,16 @@ var is_window_open = false
 var drawn_trucks_count = 0
 var drawn_excavators_count = 0
 
-
 var VehicleMovement = preload("res://scripts/quarry/QuarryLevel/VehicleMovement.gd")
 var movement
 var ExcavatorDigging = preload("res://scripts/quarry/QuarryLevel/ExcavatorDigging.gd")
 var digging
 
-
 var selection_sprite: Sprite2D = null
 var selected_vehicle_for_move = null
-var path_sprites = []  
+var path_sprites = []
 var move_progress_bars = {}  # {vehicle_id: ProgressBar}
 var pending_rubble_for_excavator = null
-
-
 var selected_excavator_for_unload = null
 var unloading_target_truck = null
 var is_unloading = false
@@ -79,14 +76,13 @@ var unload_progress = 0.0
 var UNLOAD_DURATION = 2.0
 var pending_unload_to_truck = null
 
-
 var progress_bars = {
 	"travel_to_truck": null,
 	"loading": null,
 	"extraction": null
 }
-var marker_queue = []
 
+var marker_queue = []
 
 var FrequencyWindow = preload("res://scenes/uis/FrequencyWindow.tscn")
 var freq_window_instance
@@ -96,8 +92,6 @@ var VehicleManagementWindow = preload("res://scenes/uis/VehicleManagementWindow.
 var veh_man_window_instance
 var BuyVehicleWindow = preload("res://scenes/uis/BuyVehicleWindow.tscn")
 var buy_veh_window_instance
-
-
 var WallDestructionSystem = preload("res://scripts/quarry/QuarryLevel/WallDestructionSystem.gd")
 var wall_destruction_system: WallDestructionSystem
 var selected_generator_id: int = -1
@@ -107,24 +101,20 @@ var WaveAnimation = preload("res://scripts/quarry/QuarryLevel/WaveAnimation.gd")
 var wave_animation_instance
 var TutorialLevel = preload("res://scripts/quarry/QuarryLevel/TutorialLevel.gd")
 
-
 var wall_target_frequencies: Dictionary = {}
 var wall_frequency_guessed: Dictionary = {}  # запоминаем, для каких стен уже угадана частота
-
-
 var generator_placement_mode: bool = false
 var generator_list: Array = []
 var is_generator_animation_running: bool = false
 var correctly_guessed_frequencies: Dictionary = {}  # cell -> true/false
-
-
 var hover_sprite: Sprite2D = null
 var wall_auto_discovered: Dictionary = {}  # Стены, определённые автоматически для разрушения генераторами
-
-
 var progress_style_bg: StyleBoxFlat = null
 var progress_style_fill: StyleBoxFlat = null
 
+# <<< НОВОЕ: текущие настройки генератора
+var current_generator_frequency: int = 250
+var current_generator_direction: int = 1  # 0=вверх, 1=вправо, 2=вниз, 3=влево (по умолчанию вправо)
 
 func _ready():
 	current_level = Global.current_level
@@ -153,6 +143,7 @@ func _ready():
 	
 	setup_progress_bar_style()
 	setup_shop_button()
+	setup_generator_controls()  # <<< НОВОЕ: настраиваем управление генераторами
 	
 	selection_sprite = Sprite2D.new()
 	selection_sprite.visible = false
@@ -188,7 +179,6 @@ func _ready():
 		bar.visible = false
 		bar.size = Vector2(60, 16)
 		bar.z_index = 25
-		
 		if progress_style_bg:
 			bar.add_theme_stylebox_override("slider", progress_style_bg)
 		if progress_style_fill:
@@ -197,7 +187,6 @@ func _ready():
 		bar.add_theme_font_size_override("font_size", 11)
 		if Global.exo2_font:
 			bar.add_theme_font_override("font", Global.exo2_font)
-		
 		add_child(bar)
 		progress_bars[key] = bar
 	
@@ -210,7 +199,6 @@ func _ready():
 		"rubbles": rubble_tile_map,
 		"vehicles": vehicle_tile_map
 	}, QuarryGenerator.new().get_level_size(current_level))
-	
 	movement.vehicle_moved.connect(_on_vehicle_moved)
 	movement.vehicle_arrived.connect(_on_vehicle_arrived)
 	movement.vehicle_progress.connect(_on_vehicle_progress)
@@ -224,11 +212,44 @@ func _ready():
 	
 	setup_wall_destruction_system()
 	setup_ui_buttons()
-	
 	draw_quarry()
 	update_ui()
 	update_start_button_state()
 
+# <<< НОВОЕ: настройка управления генераторами
+func setup_generator_controls():
+	if frequency_slider:
+		frequency_slider.min_value = 100
+		frequency_slider.max_value = 500
+		frequency_slider.value = current_generator_frequency
+		frequency_slider.value_changed.connect(_on_frequency_slider_changed)
+	
+	if direction_right_button:
+		direction_right_button.pressed.connect(func(): _on_direction_button_pressed(1))
+	if direction_left_button:
+		direction_left_button.pressed.connect(func(): _on_direction_button_pressed(3))
+	if direction_up_button:
+		direction_up_button.pressed.connect(func(): _on_direction_button_pressed(0))
+	if direction_bottom_button:
+		direction_bottom_button.pressed.connect(func(): _on_direction_button_pressed(2))
+	
+	# <<< НОВОЕ: вручную обновляем лейблы при старте
+	_on_frequency_slider_changed(current_generator_frequency)
+	update_direction_label()
+
+func _on_frequency_slider_changed(value: float):
+	current_generator_frequency = int(value)
+	if frequency_label:
+		frequency_label.text = "Частота генератора: " + str(current_generator_frequency) + " Гц"
+
+func _on_direction_button_pressed(direction: int):
+	current_generator_direction = direction
+	update_direction_label()
+
+func update_direction_label():
+	if direction_label:
+		var directions = ["Вверх", "Вправо", "Вниз", "Влево"]
+		direction_label.text = "Направление: " + directions[current_generator_direction]
 
 func setup_progress_bar_style():
 	progress_style_bg = StyleBoxFlat.new()
@@ -245,17 +266,14 @@ func setup_progress_bar_style():
 	progress_style_fill.corner_radius_bottom_left = 4
 	progress_style_fill.corner_radius_bottom_right = 4
 
-
 func setup_shop_button():
 	if not shop_button:
 		return
-
 
 func _on_shop_button_pressed():
 	if is_window_open:
 		return
 	open_buy_vehicle_window()
-
 
 func open_buy_vehicle_window():
 	block_all_buttons()
@@ -264,7 +282,6 @@ func open_buy_vehicle_window():
 	is_window_open = true
 	buy_veh_window_instance.connect("window_closed", window_closed)
 	buy_veh_window_instance.connect("update_ui", update_ui)
-
 
 func setup_ui_buttons():
 	if place_generator_button:
@@ -286,22 +303,19 @@ func setup_ui_buttons():
 		if not vehicles_button.is_connected("pressed", Callable(self, "_on_vehicles_button_pressed")):
 			vehicles_button.pressed.connect(_on_vehicles_button_pressed)
 
-
 func setup_wall_destruction_system():
 	wall_destruction_system = WallDestructionSystem.new()
 	add_child(wall_destruction_system)
 	wall_destruction_system.setup(
-		current_level, 
-		wall_tile_map, 
-		rubble_tile_map, 
+		current_level,
+		wall_tile_map,
+		rubble_tile_map,
 		vehicle_tile_map,
 		floor_tile_map
 	)
-	
 	wall_destruction_system.wall_destroyed.connect(_on_wall_destroyed)
 	wall_destruction_system.rubble_spawned.connect(_on_rubble_spawned)
 	wall_destruction_system.vehicle_destroyed.connect(_on_vehicle_destroyed)
-
 
 func _process(delta: float) -> void:
 	if is_generator_animation_running:
@@ -321,7 +335,6 @@ func _process(delta: float) -> void:
 	if is_unloading:
 		unload_progress += delta
 		update_progress_bar("loading", unload_progress / UNLOAD_DURATION)
-		
 		if unload_progress >= UNLOAD_DURATION:
 			finish_unloading()
 	
@@ -330,13 +343,11 @@ func _process(delta: float) -> void:
 	if generator_placement_mode and hover_sprite and not is_window_open:
 		var mouse_pos = get_global_mouse_position()
 		var cell = floor_tile_map.local_to_map(mouse_pos)
-		
 		var is_floor = false
 		for floor_cell in level_data.get("floor", []):
 			if floor_cell == cell:
 				is_floor = true
 				break
-		
 		if is_floor and wall_destruction_system.is_cell_free(cell):
 			hover_sprite.position = cell * 64
 			hover_sprite.visible = true
@@ -348,7 +359,6 @@ func _process(delta: float) -> void:
 	
 	if not Global.is_tutorial:
 		check_level_completion()
-
 
 func draw_quarry():
 	for marker in marker_queue:
@@ -382,7 +392,6 @@ func draw_quarry():
 	for truck_data in level_data.get("trucks", []):
 		var cell = Vector2i(truck_data.get("cell", [0, 0])[0], truck_data.get("cell", [0, 0])[1])
 		vehicle_tile_map.set_cell(cell, 0, TRUCK_TILE)
-		
 		var is_full = false
 		for truck in Global.vehicles.get("trucks", []):
 			if truck.get("id") == truck_data.get("id"):
@@ -390,7 +399,6 @@ func draw_quarry():
 				if truck.get("ore", 0) >= capacity:
 					is_full = true
 				break
-		
 		if is_full:
 			var marker = Sprite2D.new()
 			marker.centered = true
@@ -406,13 +414,11 @@ func draw_quarry():
 	for excavator_data in level_data.get("excavators", []):
 		var cell = Vector2i(excavator_data.get("cell", [0, 0])[0], excavator_data.get("cell", [0, 0])[1])
 		vehicle_tile_map.set_cell(cell, 0, EXCAVATOR_TILE)
-		
 		var is_full = false
 		for ex in Global.vehicles.get("excavators", []):
 			if ex.get("id") == excavator_data.get("id") and ex.get("is_full", false):
 				is_full = true
 				break
-		
 		if is_full:
 			var marker = Sprite2D.new()
 			marker.centered = true
@@ -425,18 +431,15 @@ func draw_quarry():
 			add_child(marker)
 			marker_queue.append(marker)
 
-
 func spawn_rubble(cell: Vector2i, rock_type_id: int = 0):
 	var level_data = Global.level_state.get(current_level, {})
 	if border_tile_map.get_cell_source_id(cell) == -1 and rubble_tile_map.get_cell_source_id(cell) == -1:
 		var rubble_tiles = level_data.get("rubble_tiles", {})
 		rubble_tiles[cell] = rock_type_id
 		level_data["rubble_tiles"] = rubble_tiles
-		
 		rubble_tile_map.set_cell(cell, 0, RUBBLE_TILES[rock_type_id])
 		level_data["rubbles"].append(cell)
 		Global.level_state[current_level]["rubbles"] = level_data["rubbles"]
-
 
 func is_wall_accessible(cell: Vector2i) -> bool:
 	var level_data = Global.level_state.get(current_level, {})
@@ -448,9 +451,7 @@ func is_wall_accessible(cell: Vector2i) -> bool:
 		if neighbor.x >= 0 and neighbor.x < size.x and neighbor.y >= 0 and neighbor.y < size.y:
 			if not walls.has(neighbor) and border_tile_map.get_cell_source_id(neighbor) == -1:
 				return true
-	
 	return false
-
 
 func unlock_all_buttons():
 	var buttons = [
@@ -462,7 +463,14 @@ func unlock_all_buttons():
 	for button in buttons:
 		if button:
 			button.disabled = false
-
+	# <<< ИСПРАВЛЕНО: для слайдера используем editable вместо disabled
+	if frequency_slider:
+		frequency_slider.editable = true
+	# Кнопки направления
+	var dir_buttons = [direction_right_button, direction_left_button, direction_up_button, direction_bottom_button]
+	for btn in dir_buttons:
+		if btn:
+			btn.disabled = false
 
 func block_all_buttons():
 	var buttons = [
@@ -475,14 +483,20 @@ func block_all_buttons():
 	for button in buttons:
 		if button:
 			button.disabled = true
-
+	# <<< ИСПРАВЛЕНО: для слайдера используем editable вместо disabled
+	if frequency_slider:
+		frequency_slider.editable = false
+	# Кнопки направления
+	var dir_buttons = [direction_right_button, direction_left_button, direction_up_button, direction_bottom_button]
+	for btn in dir_buttons:
+		if btn:
+			btn.disabled = true
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.pressed:
 			if event.button_index == MOUSE_BUTTON_LEFT and not is_window_open and not is_generator_animation_running:
 				var mouse_pos = get_viewport().get_mouse_position()
-				
 				var ui_nodes = get_tree().get_nodes_in_group("ui")
 				for ui in ui_nodes:
 					if ui.visible and ui.get_global_rect().has_point(mouse_pos):
@@ -491,6 +505,13 @@ func _input(event: InputEvent) -> void:
 				var world_pos = get_global_mouse_position()
 				var cell = floor_tile_map.local_to_map(world_pos)
 				
+				# <<< НОВОЕ: проверка клика на установленный генератор
+				if not generator_placement_mode:
+					var clicked_gen = get_generator_at_cell(cell)
+					if clicked_gen != -1:
+						open_generator_setup_window(clicked_gen)
+						return
+				
 				if generator_placement_mode:
 					var is_floor = false
 					var level_data = Global.level_state.get(current_level, {})
@@ -498,7 +519,6 @@ func _input(event: InputEvent) -> void:
 						if floor_cell == cell:
 							is_floor = true
 							break
-					
 					if is_floor and wall_destruction_system.is_cell_free(cell):
 						place_generator_at_cell(cell)
 						return
@@ -521,14 +541,11 @@ func _input(event: InputEvent) -> void:
 						if not is_wall_accessible(cell):
 							print("Эта стена окружена другими стенами! Сначала разрушьте соседние стены.")
 							return
-						
 						if wall_auto_discovered.has(cell):
 							wall_auto_discovered.erase(cell)
-						
 						if wall_frequency_guessed.has(cell):
 							print("Для этой стены уже определена частота: ", wall_target_frequencies[cell])
 							return
-						
 						selected_cell = cell
 						open_frequency_window()
 						return
@@ -571,7 +588,6 @@ func _input(event: InputEvent) -> void:
 							if excavator_cell + dir == cell:
 								is_adjacent = true
 								break
-						
 						if is_adjacent:
 							if digging.is_busy():
 								print("Экскаватор уже копает!")
@@ -579,20 +595,23 @@ func _input(event: InputEvent) -> void:
 							digging.start_digging(selected_vehicle_for_move.get("id"), cell)
 							unselect_vehicle()
 							return
-						
 						pending_rubble_for_excavator = {
 							"vehicle_id": selected_vehicle_for_move.get("id"),
 							"rubble_cell": cell
 						}
-						
 						var target_cell = movement.find_free_cell_near(cell, selected_vehicle_for_move.get("cell"))
 						if target_cell == null:
 							print("Нет свободной клетки рядом с кучей!")
 							return
-						
 						move_vehicle_to(target_cell)
 						return
 
+# <<< НОВОЕ: получить ID генератора в клетке
+func get_generator_at_cell(cell: Vector2i) -> int:
+	for gen_data in generator_list:
+		if gen_data.cell == cell:
+			return gen_data.id
+	return -1
 
 func _on_place_generator_button_pressed():
 	if is_generator_animation_running:
@@ -601,7 +620,6 @@ func _on_place_generator_button_pressed():
 		return
 	
 	generator_placement_mode = not generator_placement_mode
-	
 	if generator_placement_mode:
 		place_generator_button.text = "Отмена"
 		selection_sprite.visible = false
@@ -614,20 +632,21 @@ func _on_place_generator_button_pressed():
 			hover_sprite.visible = false
 		selection_sprite.visible = false
 
-
 func place_generator_at_cell(cell: Vector2i):
-	var gen_id = wall_destruction_system.place_generator(cell, 0)
-	
+	# <<< ИСПРАВЛЕНО: используем текущие настройки из UIPanel
+	var gen_id = wall_destruction_system.place_generator(cell, current_generator_direction)
 	if gen_id != -1:
+		# Устанавливаем частоту сразу
+		wall_destruction_system.set_generator_frequency(gen_id, current_generator_frequency)
+		
 		var gen_data = {
 			"cell": cell,
-			"direction": 0,
-			"frequency": 0,
+			"direction": current_generator_direction,
+			"frequency": current_generator_frequency,
 			"id": gen_id
 		}
 		generator_list.append(gen_data)
-		
-		print("Генератор #", gen_id, " установлен в клетке ", cell)
+		print("Генератор #", gen_id, " установлен в клетке ", cell, " с частотой ", current_generator_frequency, " Гц и направлением ", current_generator_direction)
 		
 		generator_placement_mode = false
 		place_generator_button.text = "Установить генератор"
@@ -635,8 +654,8 @@ func place_generator_at_cell(cell: Vector2i):
 			hover_sprite.visible = false
 		selection_sprite.visible = false
 		
-		open_generator_setup_window(gen_id)
-
+		# <<< ИСПРАВЛЕНО: НЕ открываем окно настройки сразу
+		update_start_button_state()
 
 func level_data_has_wall(cell: Vector2i) -> bool:
 	var level_data = Global.level_state.get(current_level, {})
@@ -645,15 +664,13 @@ func level_data_has_wall(cell: Vector2i) -> bool:
 			return true
 	return false
 
-
 func update_start_button_state():
-	if generator_list.size() >= 2:
+	if generator_list.size() >= 1:
 		var all_have_frequency = true
 		for gen_data in generator_list:
 			if gen_data.frequency == 0:
 				all_have_frequency = false
 				break
-		
 		if all_have_frequency and not is_generator_animation_running:
 			start_generators_button.disabled = false
 		else:
@@ -661,18 +678,14 @@ func update_start_button_state():
 	else:
 		start_generators_button.disabled = true
 
-
 func _on_start_generators_button_pressed():
 	if is_window_open:
 		return
-	
-	if generator_list.size() < 2:
-		print("Нужно минимум 2 генератора!")
+	if generator_list.size() < 1:
+		print("Нужен хотя бы 1 генератор!")
 		return
-	
 	if is_generator_animation_running:
 		return
-	
 	for gen_data in generator_list:
 		if gen_data.frequency == 0:
 			print("Генератор #", gen_data.id, " не имеет частоты!")
@@ -681,14 +694,12 @@ func _on_start_generators_button_pressed():
 	# Автоматически определяем только те стены, которые не были открыты в мини-игре
 	var level_data = Global.level_state.get(current_level, {})
 	var wall_freqs = level_data.get("wall_frequencies", {})
-	
 	var auto_discovered_count = 0
 	for wall_cell in level_data.get("walls", []):
 		if not wall_frequency_guessed.has(wall_cell):
 			if wall_freqs.has(wall_cell):
 				wall_auto_discovered[wall_cell] = wall_freqs[wall_cell]
 				auto_discovered_count += 1
-	
 	print("Автоматически определено стен для разрушения генераторами: ", auto_discovered_count)
 	
 	is_generator_animation_running = true
@@ -702,7 +713,6 @@ func _on_start_generators_button_pressed():
 			gen_setup_instance = null
 	
 	start_wave_animation()
-
 
 func start_wave_animation():
 	wave_animation_instance = WaveAnimation.new()
@@ -725,7 +735,6 @@ func start_wave_animation():
 	wave_animation_instance.animation_finished.connect(_on_wave_animation_finished)
 	wave_animation_instance.start_animation()
 
-
 func _on_wave_animation_finished(result: Dictionary):
 	if result.destroyed_walls.size() > 0:
 		print("Разрушено стен: ", result.destroyed_walls.size())
@@ -744,6 +753,7 @@ func _on_wave_animation_finished(result: Dictionary):
 	else:
 		print("Ни одна стена не была разрушена")
 		emit_signal("resonance_failed")  # <<< ИЗМЕНЕНО: вместо resonance_completed
+	
 	wall_auto_discovered.clear()
 	remove_all_generators()
 	is_generator_animation_running = false
@@ -753,88 +763,82 @@ func _on_wave_animation_finished(result: Dictionary):
 	update_start_button_state()
 	draw_quarry()
 
-
 func remove_all_generators():
 	for gen_data in generator_list:
 		wall_destruction_system.remove_generator(gen_data.id)
-	
 	generator_list.clear()
-	
 	place_generator_button.text = "Установить генератор"
 	generator_placement_mode = false
 	if hover_sprite:
 		hover_sprite.visible = false
 	selection_sprite.visible = false
-	
 	update_start_button_state()
-
 
 func open_generator_setup_window(generator_id: int):
 	if gen_setup_instance != null:
 		gen_setup_instance.queue_free()
 		gen_setup_instance = null
 	
+	# <<< НОВОЕ: получаем текущие значения генератора
+	var gen_freq = 250
+	var gen_dir = 0
+	for gen_data in generator_list:
+		if gen_data.id == generator_id:
+			gen_freq = gen_data.frequency
+			gen_dir = gen_data.direction
+			break
+	
 	block_all_buttons()
 	gen_setup_instance = GeneratorSetupWindow.instantiate()
 	popup_container.add_child(gen_setup_instance)
 	is_window_open = true
-	gen_setup_instance.setup(generator_id)
+	
+	# <<< НОВОЕ: передаём текущие значения в setup()
+	gen_setup_instance.setup(generator_id, gen_freq, gen_dir)
 	gen_setup_instance.frequency_selected.connect(_on_generator_frequency_selected)
 	gen_setup_instance.direction_selected.connect(_on_generator_direction_selected)
 	gen_setup_instance.window_closed.connect(_on_generator_setup_closed)
 	gen_setup_instance.generator_cancelled.connect(_on_generator_cancelled)
 
-
 func _on_generator_cancelled(generator_id: int):
 	wall_destruction_system.remove_generator(generator_id)
-	
 	var idx = -1
 	for i in range(generator_list.size()):
 		if generator_list[i].id == generator_id:
 			idx = i
 			break
-	
 	if idx != -1:
 		generator_list.remove_at(idx)
-	
 	update_start_button_state()
 	unlock_all_buttons()
 	print("Генератор #", generator_id, " удалён")
 
-
 func _on_generator_frequency_selected(generator_id: int, frequency: int):
 	wall_destruction_system.set_generator_frequency(generator_id, frequency)
-	
 	for gen_data in generator_list:
 		if gen_data.id == generator_id:
 			gen_data.frequency = frequency
 			break
-	
 	update_start_button_state()
-
 
 func _on_generator_direction_selected(generator_id: int, direction: int):
 	wall_destruction_system.set_generator_direction(generator_id, direction)
-	
 	for gen_data in generator_list:
 		if gen_data.id == generator_id:
 			gen_data.direction = direction
 			break
-
 
 func _on_generator_setup_closed():
 	is_window_open = false
 	gen_setup_instance = null
 	unlock_all_buttons()
 	update_start_button_state()
-	
 	if generator_placement_mode:
 		generator_placement_mode = false
 		place_generator_button.text = "Установить генератор"
 		if hover_sprite:
 			hover_sprite.visible = false
 		selection_sprite.visible = false
-
 
 func destroy_cell(cell):
 	if wall_tile_map.get_cell_source_id(cell) != -1:
@@ -846,10 +850,8 @@ func destroy_cell(cell):
 		Global.level_state[current_level] = level_data
 		update_ui()
 
-
 func update_ui():
 	$CanvasLayer/UIPanel/MoneyLabel.text = "Деньги: " + str(Global.money)
-
 
 func update_factory_ui():
 	if factory_progress_bar == null:
@@ -870,19 +872,18 @@ func update_factory_ui():
 	else:
 		factory_label.text = "Ожидание"
 
-
 func change_money(pos, value) -> void:
 	if pos == "+":
 		Global.money += value
 	elif pos == "-":
 		Global.money -= value
 
-
 func open_frequency_window():
 	var wall_freq = wall_destruction_system.get_wall_frequency(selected_cell)
 	if wall_freq == 0:
 		print("Ошибка: частота для стены не найдена!")
 		return
+	
 	block_all_buttons()
 	freq_window_instance = FrequencyWindow.instantiate()
 	popup_container.add_child(freq_window_instance)
@@ -890,7 +891,6 @@ func open_frequency_window():
 	freq_window_instance.setup(selected_cell, wall_freq)
 	freq_window_instance.connect("frequency_selected", _on_frequency_selected_for_wall)
 	freq_window_instance.connect("window_closed", window_closed)
-
 
 func _on_frequency_selected_for_wall(freq, status):
 	var target_frequency = freq
@@ -908,18 +908,15 @@ func _on_frequency_selected_for_wall(freq, status):
 	print("Для стены в клетке ", selected_cell, " определена целевая частота: ", target_frequency)
 	window_closed()
 
-
 func window_closed():
 	is_window_open = false
 	unlock_all_buttons()
 	update_start_button_state()
 
-
 func _on_storage_button_pressed():
 	if is_window_open:
 		return
 	open_storage_window()
-
 
 func open_storage_window():
 	block_all_buttons()
@@ -929,7 +926,6 @@ func open_storage_window():
 	stor_window_instate.connect("window_closed", window_closed)
 	stor_window_instate.connect("update_ui", update_ui)
 
-
 func open_vehicle_management_window():
 	block_all_buttons()
 	veh_man_window_instance = VehicleManagementWindow.instantiate()
@@ -937,12 +933,10 @@ func open_vehicle_management_window():
 	is_window_open = true
 	veh_man_window_instance.tree_exited.connect(_on_vehicle_window_closed)
 
-
 func _on_vehicle_window_closed():
 	is_window_open = false
 	unlock_all_buttons()
 	update_start_button_state()
-
 
 func destroy_more_cells(cond):
 	if cond == "center":
@@ -952,7 +946,6 @@ func destroy_more_cells(cond):
 		destroy_cell(Vector2i(selected_cell.x - 1, selected_cell.y))
 		destroy_cell(Vector2i(selected_cell.x + 1, selected_cell.y))
 
-
 func spawn_more_rubble(cond):
 	if cond == "center":
 		spawn_rubble(selected_cell)
@@ -960,7 +953,6 @@ func spawn_more_rubble(cond):
 		spawn_rubble(Vector2i(selected_cell.x, selected_cell.y + 1))
 		spawn_rubble(Vector2i(selected_cell.x - 1, selected_cell.y))
 		spawn_rubble(Vector2i(selected_cell.x + 1, selected_cell.y))
-
 
 func get_vehicle_at_cell(cell: Vector2i):
 	var level_data = Global.level_state.get(current_level, {})
@@ -974,19 +966,22 @@ func get_vehicle_at_cell(cell: Vector2i):
 			return {"type": "excavator", "id": excavator_data.get("id"), "cell": cell}
 	return null
 
-
 func select_vehicle_for_move(vehicle_data, cell: Vector2i):
 	if is_generator_animation_running:
 		return
+	
 	if vehicle_data.get("type") == "excavator" and is_vehicle_busy(vehicle_data.get("id")):
 		print("Экскаватор занят копанием!")
 		return
+	
 	# <<< НОВОЕ: запрет перемещения грузовика во время загрузки
 	if vehicle_data.get("type") == "truck" and is_truck_loading(vehicle_data.get("id")):
 		print("Грузовик загружается! Дождитесь окончания загрузки.")
 		return
+	
 	if selected_vehicle_for_move != null:
 		unselect_vehicle()
+	
 	selected_vehicle_for_move = vehicle_data
 	highlight_vehicle(cell, true)
 	print("Выбран транспорт #", vehicle_data.get("id"))
@@ -998,12 +993,10 @@ func is_truck_loading(truck_id: int) -> bool:
 			return truck.get("status") == "loading"
 	return false
 
-
 func unselect_vehicle():
 	if selected_vehicle_for_move != null:
 		highlight_vehicle(selected_vehicle_for_move.get("cell"), false)
-		selected_vehicle_for_move = null
-
+	selected_vehicle_for_move = null
 
 func highlight_vehicle(cell: Vector2i, highlight: bool, color: Color = Color.YELLOW):
 	if selection_sprite == null:
@@ -1015,7 +1008,6 @@ func highlight_vehicle(cell: Vector2i, highlight: bool, color: Color = Color.YEL
 	else:
 		selection_sprite.visible = false
 		selection_sprite.modulate = Color.WHITE
-
 
 func move_vehicle_to(target_cell: Vector2i):
 	if selected_vehicle_for_move == null:
@@ -1030,7 +1022,6 @@ func move_vehicle_to(target_cell: Vector2i):
 		if path != null:
 			draw_path(path)
 		unselect_vehicle()
-
 
 func draw_path(path: Array):
 	clear_path()
@@ -1049,33 +1040,28 @@ func draw_path(path: Array):
 		add_child(sprite)
 		path_sprites.append(sprite)
 
-
 func clear_path():
 	for sprite in path_sprites:
 		sprite.queue_free()
 	path_sprites.clear()
 
-
 func _on_vehicle_moved(vehicle_id, new_cell):
 	draw_quarry()
-
 
 func _on_vehicle_arrived(vehicle_id):
 	if move_progress_bars.has(vehicle_id):
 		move_progress_bars[vehicle_id].queue_free()
 		move_progress_bars.erase(vehicle_id)
-	
 	clear_path()
+	
 	print("Транспорт #", vehicle_id, " прибыл")
 	
 	if pending_rubble_for_excavator and pending_rubble_for_excavator.get("vehicle_id") == vehicle_id:
 		var rubble_cell = pending_rubble_for_excavator.get("rubble_cell")
-		
 		if digging.is_busy():
 			print("Экскаватор уже копает!")
 			pending_rubble_for_excavator = null
 			return
-		
 		var excavator_cell = movement.get_vehicle_cell(vehicle_id, "excavator")
 		if excavator_cell:
 			var is_adjacent = false
@@ -1083,11 +1069,9 @@ func _on_vehicle_arrived(vehicle_id):
 				if excavator_cell + dir == rubble_cell:
 					is_adjacent = true
 					break
-			
 			if is_adjacent:
 				digging.start_digging(vehicle_id, rubble_cell)
 				print("Экскаватор #", vehicle_id, " начал копать после прибытия к куче!")
-		
 		pending_rubble_for_excavator = null
 	
 	if pending_unload_to_truck and pending_unload_to_truck.get("excavator_id") == vehicle_id:
@@ -1097,7 +1081,6 @@ func _on_vehicle_arrived(vehicle_id):
 		else:
 			print("Экскаватор не рядом с грузовиком после перемещения!")
 		pending_unload_to_truck = null
-
 
 func _on_vehicle_progress(vehicle_id, progress):
 	if not move_progress_bars.has(vehicle_id):
@@ -1126,10 +1109,8 @@ func _on_vehicle_progress(vehicle_id, progress):
 	var cell = movement.get_vehicle_cell(vehicle_id, "truck")
 	if cell == Vector2i(-1, -1):  # было: if cell == null
 		cell = movement.get_vehicle_cell(vehicle_id, "excavator")
-	
 	if cell != Vector2i(-1, -1):  # было: if cell != null
 		bar.position = Vector2(cell.x * 64 + 2, cell.y * 64 - 20)
-
 
 func update_progress_bar(key: String, progress: float):
 	if progress_bars.has(key):
@@ -1143,10 +1124,9 @@ func update_progress_bar(key: String, progress: float):
 				bar.add_theme_stylebox_override("fill", progress_style_fill)
 			if not bar.has_theme_color_override("font_color"):
 				bar.add_theme_color_override("font_color", Color("#E6F2FF"))
-				bar.add_theme_font_size_override("font_size", 11)
-				if Global.exo2_font:
-					bar.add_theme_font_override("font", Global.exo2_font)
-			
+			bar.add_theme_font_size_override("font_size", 11)
+			if Global.exo2_font:
+				bar.add_theme_font_override("font", Global.exo2_font)
 			bar.value = clamp(progress * 100, 0, 100)
 			bar.visible = true
 			if key == "loading" and selected_excavator_for_unload != null:
@@ -1160,7 +1140,6 @@ func update_progress_bar(key: String, progress: float):
 						bar.position = Vector2(cell.x * 64 + 2, cell.y * 64 - 20)
 						break
 
-
 func _on_digging_progress(vehicle_id, progress, cell):
 	if progress_bars.has("extraction"):
 		var bar = progress_bars["extraction"]
@@ -1173,48 +1152,39 @@ func _on_digging_progress(vehicle_id, progress, cell):
 				bar.add_theme_stylebox_override("fill", progress_style_fill)
 			if not bar.has_theme_color_override("font_color"):
 				bar.add_theme_color_override("font_color", Color("#E6F2FF"))
-				bar.add_theme_font_size_override("font_size", 11)
-				if Global.exo2_font:
-					bar.add_theme_font_override("font", Global.exo2_font)
-			
+			bar.add_theme_font_size_override("font_size", 11)
+			if Global.exo2_font:
+				bar.add_theme_font_override("font", Global.exo2_font)
 			bar.value = clamp(progress * 100, 0, 100)
 			bar.visible = true
 			if cell != null:
 				bar.position = Vector2(cell.x * 64 + 2, cell.y * 64 - 20)
 
-
 func _on_digging_completed(level, vehicle_id, rubble_cell):
 	if level == current_level:
 		print("_on_digging_completed вызван для кучи в клетке ", rubble_cell)
-		
 		if progress_bars.has("extraction"):
 			progress_bars["extraction"].visible = false
 		update_progress_bar("extraction", 0.0)
-		
 		draw_quarry()
-
 
 func is_vehicle_busy(vehicle_id: int) -> bool:
 	return digging.is_busy() and digging.current_target and digging.current_target.get("vehicle_id") == vehicle_id
 
-
 func _on_digging_started(vehicle_id):
 	if selected_vehicle_for_move and selected_vehicle_for_move.get("id") == vehicle_id:
 		unselect_vehicle()
-
 
 func _exit_tree():
 	if digging.is_busy():
 		digging.stop_digging()
 	Global.is_on_level = false
 
-
 func is_excavator_full(vehicle_id: int) -> bool:
 	for ex in Global.vehicles.get("excavators", []):
 		if ex.get("id") == vehicle_id:
 			return ex.get("is_full", false)
 	return false
-
 
 func is_truck_on_level(truck_id: int) -> bool:
 	var level_data = Global.level_state.get(current_level, {})
@@ -1223,7 +1193,6 @@ func is_truck_on_level(truck_id: int) -> bool:
 			return true
 	return false
 
-
 func is_truck_full(truck_id: int) -> bool:
 	for truck in Global.vehicles.get("trucks", []):
 		if truck.get("id") == truck_id:
@@ -1231,10 +1200,8 @@ func is_truck_full(truck_id: int) -> bool:
 			return truck.get("ore", 0) >= capacity
 	return false
 
-
 func is_excavator_adjacent_to_truck(excavator_id: int, truck_id: int) -> bool:
 	var level_data = Global.level_state.get(current_level, {})
-	
 	var excavator_cell = Vector2i(0, 0)
 	for ex in level_data.get("excavators", []):
 		if ex.get("id") == excavator_id:
@@ -1250,13 +1217,10 @@ func is_excavator_adjacent_to_truck(excavator_id: int, truck_id: int) -> bool:
 	for dir in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 		if excavator_cell + dir == truck_cell:
 			return true
-	
 	return false
-
 
 func move_excavator_to_truck(excavator_id: int, truck_id: int):
 	var level_data = Global.level_state.get(current_level, {})
-	
 	var truck_cell = Vector2i(0, 0)
 	for truck in level_data.get("trucks", []):
 		if truck.get("id") == truck_id:
@@ -1275,36 +1239,28 @@ func move_excavator_to_truck(excavator_id: int, truck_id: int):
 		return
 	
 	cancel_unload_selection()
-	
 	var vehicle_data = {"type": "excavator", "id": excavator_id, "cell": excavator_cell}
 	selected_vehicle_for_move = vehicle_data
-	
 	pending_unload_to_truck = {
 		"excavator_id": excavator_id,
 		"truck_id": truck_id
 	}
-	
 	move_vehicle_to(target_cell)
-
 
 func select_excavator_for_unload(vehicle_data, cell: Vector2i):
 	cancel_unload_selection()
-	
 	selected_excavator_for_unload = {
 		"id": vehicle_data.get("id"),
 		"cell": cell
 	}
-	
 	highlight_vehicle(cell, true, Color.BLUE)
 	print("Выберите грузовик для разгрузки экскаватора #", vehicle_data.get("id"))
-
 
 func cancel_unload_selection():
 	if selected_excavator_for_unload != null:
 		highlight_vehicle(selected_excavator_for_unload.get("cell"), false)
-		selected_excavator_for_unload = null
-		selection_sprite.modulate = Color.WHITE
-
+	selected_excavator_for_unload = null
+	selection_sprite.modulate = Color.WHITE
 
 func start_unloading(excavator_id: int, truck_id: int):
 	if is_unloading:
@@ -1378,13 +1334,10 @@ func start_unloading(excavator_id: int, truck_id: int):
 				break
 	
 	cancel_unload_selection()
-	
 	print("Началась разгрузка экскаватора #", excavator_id, " в грузовик #", truck_id)
-
 
 func finish_unloading():
 	print("Разгрузка завершена!")
-	
 	var excavator_id = -1
 	var truck_id = -1
 	var ore_amount = 0
@@ -1420,7 +1373,6 @@ func finish_unloading():
 		progress_bars["loading"].visible = false
 	
 	print("Экскаватор #", excavator_id, " разгрузил ", ore_amount, " кг ", ore_type, " в грузовик #", truck_id)
-	
 	if truck_ref != null:
 		print("В грузовике теперь: ", truck_ref.get("ore", 0), " кг ", truck_ref.get("ore_type", ""))
 	else:
@@ -1428,19 +1380,16 @@ func finish_unloading():
 	
 	draw_quarry()
 
-
 func get_truck_ore(truck_id: int) -> int:
 	for truck in Global.vehicles.get("trucks", []):
 		if truck.get("id") == truck_id:
 			return truck.get("ore", 0)
 	return 0
 
-
 func _on_vehicles_button_pressed() -> void:
 	if is_window_open:
 		return
 	open_vehicle_management_window()
-
 
 func _on_wall_destroyed(cell: Vector2i, frequency: int, accuracy: float):
 	print("Стена разрушена в клетке ", cell, " с частотой ", frequency, " (точность: ", accuracy, ")")
@@ -1448,54 +1397,44 @@ func _on_wall_destroyed(cell: Vector2i, frequency: int, accuracy: float):
 		wall_target_frequencies.erase(cell)
 	if wall_frequency_guessed.has(cell):
 		wall_frequency_guessed.erase(cell)
-	
 	# НЕ вызываем TutorialManager.on_wall_destroyed() здесь!
 	# Проверка на разрушение стены теперь полностью в TutorialManager через подсчет стен
-	
 	draw_quarry()
-
 
 func _on_rubble_spawned(cell: Vector2i, weight: int):
 	print("Куча появилась в клетке ", cell, " весом ", weight, " кг")
 	draw_quarry()
 
-
 func _on_vehicle_destroyed(vehicle_id: int):
 	print("Транспорт #", vehicle_id, " уничтожен!")
 	draw_quarry()
-
 
 func is_frequency_guessed_for_tutorial() -> bool:
 	# Проверяем, есть ли хоть одна стена с угаданной частотой
 	return wall_frequency_guessed.size() > 0
 
-
 func get_generators_count() -> int:
 	return generator_list.size()
-
 
 func are_generators_setup() -> bool:
 	for gen_data in generator_list:
 		if gen_data.frequency == 0:
 			return false
-	return generator_list.size() >= 2
-
+	return generator_list.size() >= 1
 
 func was_frequency_guessed_correctly(cell: Vector2i) -> bool:
 	# <<< ИСПРАВЛЕНО: используем отдельный флаг, который не очищается
 	return correctly_guessed_frequencies.get(cell, false)
-
 
 func get_correct_frequency(cell: Vector2i) -> int:
 	var level_data = Global.level_state.get(current_level, {})
 	var wall_freqs = level_data.get("wall_frequencies", {})
 	return wall_freqs.get(cell, 0)
 
-
 func is_frequency_guessed_for_cell(cell: Vector2i) -> bool:
 	return wall_frequency_guessed.has(cell)
 
-
+# <<< НОВОЕ: проверка завершения уровня
 func check_level_completion() -> void:
 	var level_data = Global.level_state.get(current_level, {})
 	var walls = level_data.get("walls", [])
@@ -1509,7 +1448,6 @@ func check_level_completion() -> void:
 			print("[LEVEL] Уровень ", current_level, " пройден!")
 			# Показываем окно завершения
 			_on_level_completed()
-
 
 func _on_level_completed() -> void:
 	print("[LEVEL] Уровень ", current_level, " полностью пройден!")
@@ -1541,8 +1479,11 @@ func _create_level_completion_window() -> Panel:
 	
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 15)
-	# <<< ИСПРАВЛЕНО: растягиваем на всю ширину
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Раньше vbox ничем не был привязан к панели и сжимался по контенту,
+	# повисая в углу. Теперь растягиваем его на всю панель и центрируем
+	# содержимое и по вертикали, и по горизонтали.
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(vbox)
 	
 	var title = Label.new()
@@ -1550,6 +1491,7 @@ func _create_level_completion_window() -> Panel:
 	title.add_theme_color_override("font_color", Color("#FFD700"))
 	title.add_theme_font_size_override("font_size", 24)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if Global.exo2_font:
 		title.add_theme_font_override("font", Global.exo2_font)
 	vbox.add_child(title)
@@ -1559,6 +1501,7 @@ func _create_level_completion_window() -> Panel:
 	desc.add_theme_color_override("font_color", Color("#E6F2FF"))
 	desc.add_theme_font_size_override("font_size", 16)
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if Global.exo2_font:
 		desc.add_theme_font_override("font", Global.exo2_font)
 	vbox.add_child(desc)
@@ -1574,6 +1517,7 @@ func _create_level_completion_window() -> Panel:
 	button.add_theme_stylebox_override("normal", btn_style)
 	button.add_theme_color_override("font_color", Color("#E6F2FF"))
 	button.add_theme_font_size_override("font_size", 18)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if Global.exo2_font:
 		button.add_theme_font_override("font", Global.exo2_font)
 	button.pressed.connect(func():
@@ -1584,7 +1528,6 @@ func _create_level_completion_window() -> Panel:
 	vbox.add_child(button)
 	
 	panel.size = Vector2(400, 250)
-	
 	await get_tree().process_frame
 	var viewport_size = get_viewport().get_visible_rect().size
 	panel.global_position = (viewport_size - panel.size) / 2

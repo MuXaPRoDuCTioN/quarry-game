@@ -258,6 +258,18 @@ func destroy_single_wall(cell: Vector2i, frequency: int, accuracy: float):
 	var walls = level_data.get("walls", [])
 	walls.erase(cell)
 	level_data["walls"] = walls
+	
+	# Клетка больше не стена (скоро на её месте появится куча) - чистим её
+	# частоту, иначе она навсегда останется "стеной" для будущих запусков
+	# резонанса, и куча на этом месте будет копить резонанс/подсвечиваться.
+	var wall_freqs = level_data.get("wall_frequencies", {})
+	wall_freqs.erase(cell)
+	level_data["wall_frequencies"] = wall_freqs
+	
+	var wtiles = level_data.get("wall_tiles", {})
+	wtiles.erase(cell)
+	level_data["wall_tiles"] = wtiles
+	
 	Global.level_state[current_level] = level_data
 	wall_destroyed.emit(cell, frequency, accuracy)
 	# <<< НОВОЕ: начисляем очки за разрушение стены
@@ -346,15 +358,16 @@ func get_floor_cells_in_radius(center: Vector2i, radius: int) -> Array:
 
 
 func spawn_additional_rubbles():
-	if current_level < 8:
-		return
-	var level_diff = current_level - 8
-	var base_chance = 0.3 + (level_diff * 0.1)
-	base_chance = clamp(base_chance, 0.3, 0.9)
-	var min_count = 1 + floor(level_diff / 2)
-	var max_count = 2 + floor((level_diff + 1) / 2)
-	min_count = clamp(min_count, 1, 8)
-	max_count = clamp(max_count, 2, 10)
+	# Раньше механика включалась только с 8 уровня - на практике игрок
+	# почти никогда её не встречал. Теперь работает с первого уровня,
+	# но слабо (маленький шанс, максимум 1 куча), и постепенно усиливается
+	# с глубиной - опаснее, но не жестоко на старте.
+	var level_diff = max(current_level - 1, 0)
+	var base_chance = 0.12 + (level_diff * 0.06)
+	base_chance = clamp(base_chance, 0.12, 0.9)
+	var min_count = 1
+	var max_count = 1 + int(level_diff / 3)
+	max_count = clamp(max_count, 1, 10)
 	if randf() > base_chance:
 		return
 	var count = randi_range(min_count, max_count)
@@ -398,10 +411,9 @@ func spawn_additional_rubbles():
 		var rock_type_id = _get_nearest_wall_rock_type(cell)
 		var rock = Global.rock_types.get(rock_type_id, Global.rock_types[0])
 		
-		var weight = randi_range(1, 3) * 10
-		weight = int(weight * rock["weight_multiplier"])
-		weight = round(weight / 10.0) * 10
-		weight = clamp(weight, 10, 30)
+		# Вес фиксирован по типу породы: известняк(0) и кимберлит(3) - 10 кг,
+		# кварцит(1) и гематит(2) - 20 кг.
+		var weight = 10 if rock_type_id in [0, 3] else 20
 		var rubble_tiles = level_data.get("rubble_tiles", {})
 		rubble_tiles[cell] = rock_type_id
 		level_data["rubble_tiles"] = rubble_tiles
@@ -442,10 +454,9 @@ func spawn_rubble(cell: Vector2i, frequency: int, accuracy: float, rock_type_id:
 		print("Транспорт #", vehicle_id, " удалён перед спавном кучи в клетке ", cell)
 	
 	var rock = Global.rock_types.get(rock_type_id, Global.rock_types[0])
-	var weight = randi_range(1, 3) * 10
-	weight = int(weight * rock["weight_multiplier"])
-	weight = round(weight / 10.0) * 10
-	weight = clamp(weight, 10, 30)
+	# Вес фиксирован по типу породы: известняк(0) и кимберлит(3) - 10 кг,
+	# кварцит(1) и гематит(2) - 20 кг.
+	var weight = 10 if rock_type_id in [0, 3] else 20
 	
 	var rubble_tiles = level_data.get("rubble_tiles", {})
 	rubble_tiles[cell] = rock_type_id
@@ -568,25 +579,22 @@ func destroy_wall_with_accuracy(cell: Vector2i, frequency: int, accuracy: float)
 	if not wall_exists:
 		return
 	
-	var target_freq = wall_frequencies.get(cell, 0)
-	if target_freq == 0:
-		return
-	
-	var diff = abs(frequency - target_freq)
-	
 	var final_accuracy = accuracy
-	if final_accuracy == 0.0:
-		final_accuracy = 1.0 - (diff / 1000.0)
-		final_accuracy = clamp(final_accuracy, 0.0, 1.0)
+	if final_accuracy <= 0.0:
+		var target_freq = wall_frequencies.get(cell, 0)
+		if target_freq == 0:
+			return
+		final_accuracy = _resonance_accuracy(frequency, target_freq)
 	
-	if diff <= 10:
+	# Раз стену вообще разрушают - значит резонанс уже реально накопился
+	# (см. WaveAnimation) - тут больше не отклоняем по разнице Гц, а лишь
+	# масштабируем силу/радиус разрушения по точности совпадения частоты.
+	if final_accuracy >= 0.85:
 		destroy_wall_perfect(cell, frequency, final_accuracy)
-	elif diff <= 25:
+	elif final_accuracy >= 0.5:
 		destroy_wall_good(cell, frequency, final_accuracy)
-	elif diff <= 50:
-		destroy_wall_medium(cell, frequency, final_accuracy)
 	else:
-		print("Слишком далеко от цели. Ничего не произошло.")
+		destroy_wall_medium(cell, frequency, final_accuracy)
 
 
 func destroy_wall_by_frequency(cell: Vector2i, frequency: int):
@@ -603,8 +611,15 @@ func destroy_wall_by_frequency(cell: Vector2i, frequency: int):
 	if target_freq == 0:
 		return
 	
-	var diff = abs(frequency - target_freq)
-	var accuracy = 1.0 - (diff / 1000.0)
-	accuracy = clamp(accuracy, 0.0, 1.0)
-	
+	var accuracy = _resonance_accuracy(frequency, target_freq)
 	destroy_wall_with_accuracy(cell, frequency, accuracy)
+
+
+# Та же колоколообразная кривая отклика, что и в WaveAnimation.resonance_response —
+# держим её в одном месте с тем же смыслом: чем ближе частота к собственной
+# частоте стены, тем выше точность/сила разрушения, без жёсткого обрыва по Гц.
+func _resonance_accuracy(frequency: float, target_freq: float) -> float:
+	var sigma = 35.0
+	var diff = frequency - target_freq
+	var accuracy = exp(-(diff * diff) / (2.0 * sigma * sigma))
+	return clamp(accuracy, 0.15, 1.0)

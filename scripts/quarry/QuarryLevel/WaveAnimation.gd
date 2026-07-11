@@ -5,8 +5,6 @@ signal animation_finished(result: Dictionary)
 
 var wave_polygons: Array = []
 var intersection_points: Array = []
-var resonance_effects: Array = []
-var triggered_pairs: Array = []
 var generators_data: Array = []
 var wall_targets: Dictionary = {}
 var destroyed_walls: Array = []
@@ -17,12 +15,23 @@ var floor_map: TileMapLayer = null
 var level_size: Vector2i = Vector2i(20, 20)
 
 
-# Реальные частоты стен (из Global.level_state)
+# Реальные частоты стен (из Global.level_state) - у каждой стены СВОЯ
+# собственная резонансная частота, как у любого физического объекта в жизни
 var real_wall_frequencies: Dictionary = {}
 
-
-# Порог совпадения частоты — должен совпадать с порогом в WallDestructionSystem
-const FREQ_TOLERANCE: int = 50
+# ===== Физика резонанса =====
+# Вместо мгновенного разрушения по попаданию - стена накапливает
+# "резонансное напряжение" каждый кадр анимации, пока по ней бьёт волна
+# подходящей частоты. Чем ближе частота генератора к собственной частоте
+# стены - тем сильнее отклик (колоколообразная кривая, как добротность
+# резонатора в реальной физике). Несколько генераторов ОДНОЙ частоты,
+# бьющих в одну точку, складывают свои отклики (конструктивная
+# интерференция амплитуд) - отсюда и ускоренное разрушение при совместной
+# работе, без всякого "сложения частот".
+var wall_stress: Dictionary = {}       # cell -> накопленное напряжение (0..1+)
+var wall_best_freq: Dictionary = {}    # cell -> частота лучшего попадания (для итоговой оценки точности)
+var wall_indicators: Dictionary = {}   # cell -> Sprite2D индикатор накопления
+var break_effects: Array = []          # временные "вспышки" в момент разрушения
 
 
 func setup(generators: Array, targets: Dictionary):
@@ -30,8 +39,10 @@ func setup(generators: Array, targets: Dictionary):
 	wall_targets = targets
 	destroyed_walls = []
 	current_step = 0
-	resonance_effects.clear()
-	triggered_pairs.clear()
+	wall_stress.clear()
+	wall_best_freq.clear()
+	wall_indicators.clear()
+	break_effects.clear()
 
 	var level = get_tree().current_scene
 	wall_map = level.wall_tile_map
@@ -56,18 +67,20 @@ func create_wave_visuals():
 		polygon.color = Color(0, 0.8, 1, 0.3)
 		polygon.z_index = 20
 		add_child(polygon)
-		var cone_cells = get_cone_cells_with_walls(gen.cell, gen.direction)
+		var cone_data = get_cone_cells_with_walls(gen.cell, gen.direction)
 		wave_polygons.append({
 			"polygon": polygon,
-			"cone_cells": cone_cells,
+			"cone_cells": cone_data.all_cells,
+			"rays": cone_data.rays,
 			"gen_cell": gen.cell,
 			"direction": gen.direction,
 			"current_length": 0
 		})
 
 
-func get_cone_cells_with_walls(start: Vector2i, direction: int) -> Array:
+func get_cone_cells_with_walls(start: Vector2i, direction: int) -> Dictionary:
 	var all_cells = []
+	var rays = []  # Array лучей, каждый - Array[Vector2i] от ближней к дальней клетке
 	var max_distance = 20
 	var angle_deg = 30.0
 	var base_angle = 0.0
@@ -78,29 +91,27 @@ func get_cone_cells_with_walls(start: Vector2i, direction: int) -> Array:
 		3: base_angle = 180.0
 	for angle_offset in range(-int(angle_deg/2), int(angle_deg/2) + 1, 2):
 		var ray_cells = []
-		var hit_wall = false
 		for dist in range(1, max_distance + 1):
 			var angle = deg_to_rad(base_angle + angle_offset)
 			var dir_vec = Vector2(cos(angle), sin(angle))
 			var offset = Vector2i(round(dir_vec.x * dist), round(dir_vec.y * dist))
 			var cell = start + offset
 			if cell.x < 1 or cell.x >= level_size.x - 1 or cell.y < 1 or cell.y >= level_size.y - 1:
-				hit_wall = true
 				break
 			if is_wall_at(cell):
-				hit_wall = true
 				if not ray_cells.has(cell):
 					ray_cells.append(cell)
 				break
 			if not is_floor_at(cell):
-				hit_wall = true
 				break
 			if not ray_cells.has(cell):
 				ray_cells.append(cell)
+		if not ray_cells.is_empty():
+			rays.append(ray_cells)
 		for cell in ray_cells:
 			if not all_cells.has(cell):
 				all_cells.append(cell)
-	return all_cells
+	return {"all_cells": all_cells, "rays": rays}
 
 
 func is_wall_at(cell: Vector2i) -> bool:
@@ -126,242 +137,195 @@ func _process_animation_step():
 		return
 	for wave_data in wave_polygons:
 		var polygon = wave_data.polygon
-		var cone_cells = wave_data.cone_cells
 		var start_cell = wave_data.gen_cell
-		var cells_up_to_step = []
-		for cell in cone_cells:
-			var dist = abs(cell.x - start_cell.x) + abs(cell.y - start_cell.y)
-			if dist <= current_step:
-				cells_up_to_step.append(cell)
+		
+		# Строим веер: генератор -> кончик первого луча -> ... -> кончик последнего.
+		# Лучи уже идут в правильном угловом порядке (от -15° до +15° смещения),
+		# поэтому пересортировка по atan2 не нужна - именно она и ломала "влево"
+		# (разрыв диапазона atan2 на ±180°) и давала кривую заливку для "вверх"/"вниз".
 		var points = []
-		if cells_up_to_step.size() > 0:
-			var sorted_cells = sort_cells_for_polygon(cells_up_to_step, start_cell)
-			for cell in sorted_cells:
-				points.append(cell * 64 + Vector2i(32, 32))
-			if points.size() > 0:
-				points.append(points[0])
-		polygon.polygon = points
-		check_intersections_at_step(current_step)
+		points.append(start_cell * 64 + Vector2i(32, 32))
+		for ray in wave_data.rays:
+			var visible_cell = null
+			for cell in ray:
+				var dist = abs(cell.x - start_cell.x) + abs(cell.y - start_cell.y)
+				if dist <= current_step:
+					visible_cell = cell
+				else:
+					break
+			if visible_cell != null:
+				points.append(visible_cell * 64 + Vector2i(32, 32))
+		
+		polygon.polygon = points if points.size() > 2 else []
+		update_resonance_at_step(current_step)
 	current_step += 1
 	var timer = get_tree().create_timer(0.08)
 	timer.timeout.connect(_process_animation_step)
 
 
-func sort_cells_for_polygon(cells: Array, start: Vector2i) -> Array:
-	if cells.size() <= 1:
-		return cells
-	var center = Vector2(start.x + 0.5, start.y + 0.5)
-	cells.sort_custom(func(a, b):
-		var angle_a = atan2(a.y - center.y, a.x - center.x)
-		var angle_b = atan2(b.y - center.y, b.x - center.x)
-		return angle_a < angle_b
-	)
-	return cells
+func resonance_response(freq: float, target_freq: float) -> float:
+	var diff = freq - target_freq
+	var sigma = 35.0  # используем значение по умолчанию
+	return exp(-(diff * diff) / (2.0 * sigma * sigma))
 
 
-func check_intersections_at_step(step: int):
-	var pair_overlaps: Array = []
+func resonance_response_with_sigma(freq: float, target_freq: float, sigma: float) -> float:
+	var diff = freq - target_freq
+	return exp(-(diff * diff) / (2.0 * sigma * sigma))
+
+
+func update_resonance_at_step(step: int) -> void:
+	var touched_cells: Dictionary = {}
+	
+	# Получаем wall_tiles один раз, чтобы не дёргать каждый кадр
+	var level_data = Global.level_state.get(Global.current_level, {})
+	var wall_tiles = level_data.get("wall_tiles", {})
+	
+	# Базовая мощность генератора (вместо старой константы STRESS_PER_STEP)
+	var base_power = 0.10
+	
 	for i in range(generators_data.size()):
-		for j in range(i + 1, generators_data.size()):
-			var pair_key = str(i) + "_" + str(j)
-			var gen1 = generators_data[i]
-			var gen2 = generators_data[j]
-			if gen1.frequency == 0 or gen2.frequency == 0:
+		var gen = generators_data[i]
+		if gen.frequency == 0:
+			continue
+		var cells = get_cells_up_to_step(wave_polygons[i].cone_cells, gen.cell, step)
+		for cell in cells:
+			if not real_wall_frequencies.has(cell) or _is_wall_destroyed(cell):
 				continue
-			var cells1 = get_cells_up_to_step(wave_polygons[i].cone_cells, gen1.cell, step)
-			var cells2 = get_cells_up_to_step(wave_polygons[j].cone_cells, gen2.cell, step)
-			var overlap = []
-			for cell1 in cells1:
-				if cells2.has(cell1):
-					overlap.append(cell1)
-			if overlap.is_empty():
+			if not is_wall_at(cell):
 				continue
-			# МЕХАНИКА НЕ МЕНЯЕТСЯ: combined_freq = сумма частот
-			var combined_freq = gen1.frequency + gen2.frequency
-			pair_overlaps.append({"key": pair_key, "cells": overlap, "freq": combined_freq})
-			if not triggered_pairs.has(pair_key):
-				triggered_pairs.append(pair_key)
-				var geo = compute_zone_geometry(overlap)
-				# Сравниваем с РЕАЛЬНОЙ частотой стены
-				var is_target = zone_has_target(overlap, combined_freq)
-				create_resonance_effect(geo.center_px, geo.extent_cells, is_target, 1)
-			# Собираем стены для разрушения — сравниваем с РЕАЛЬНОЙ частотой
-			for cell in overlap:
-				if real_wall_frequencies.has(cell):
-					var real_freq = real_wall_frequencies[cell]
-					if abs(combined_freq - real_freq) <= FREQ_TOLERANCE:
-						var already_destroyed = false
-						for wall in destroyed_walls:
-							if wall.cell == cell:
-								already_destroyed = true
-								break
-						if not already_destroyed:
-							destroyed_walls.append({
-								"cell": cell,
-								"frequency": combined_freq,
-								"accuracy": 1.0
-							})
-	# Супер-резонанс
-	for a in range(pair_overlaps.size()):
-		for b in range(a + 1, pair_overlaps.size()):
-			var zone_a = pair_overlaps[a]
-			var zone_b = pair_overlaps[b]
-			var meta_key = "meta_" + zone_a.key + "_" + zone_b.key
-			if triggered_pairs.has(meta_key):
-				continue
-			var meta_overlap = []
-			for cell in zone_a.cells:
-				if zone_b.cells.has(cell):
-					meta_overlap.append(cell)
-			if meta_overlap.is_empty():
-				continue
-			triggered_pairs.append(meta_key)
-			# МЕХАНИКА НЕ МЕНЯЕТСЯ: meta_freq = (a+b)*3
-			var meta_freq = (zone_a.freq + zone_b.freq) * 3.0
-			var geo = compute_zone_geometry(meta_overlap)
-			var is_target = zone_has_target(meta_overlap, meta_freq)
-			create_resonance_effect(geo.center_px, geo.extent_cells, is_target, 2)
-			for cell in meta_overlap:
-				if real_wall_frequencies.has(cell):
-					var real_freq = real_wall_frequencies[cell]
-					if abs(meta_freq - real_freq) <= FREQ_TOLERANCE:
-						var already_destroyed = false
-						for wall in destroyed_walls:
-							if wall.cell == cell:
-								already_destroyed = true
-								break
-						if not already_destroyed:
-							destroyed_walls.append({
-								"cell": cell,
-								"frequency": meta_freq,
-								"accuracy": 1.0
-							})
+			touched_cells[cell] = true
+			var target_freq = real_wall_frequencies[cell]
+			
+			# <<< НОВОЕ: берём параметры породы этой конкретной стены
+			var rock_id = wall_tiles.get(cell, 0)
+			var rock = Global.rock_types.get(rock_id, Global.rock_types[0])
+			var tolerance = rock.get("frequency_tolerance", 35.0)
+			var damping = rock.get("damping", 0.03)
+			var sigma = tolerance / 2.355  # FWHM → sigma гауссианы
+			
+			# Гауссов отклик с учётом породы
+			var response = resonance_response_with_sigma(gen.frequency, target_freq, sigma)
+			wall_stress[cell] = wall_stress.get(cell, 0.0) + response * base_power
+			
+			if not wall_best_freq.has(cell) or response > resonance_response_with_sigma(wall_best_freq[cell], target_freq, sigma):
+				wall_best_freq[cell] = gen.frequency
+	
+	# Затухание — тоже зависит от породы
+	for cell in wall_stress.keys():
+		if not touched_cells.has(cell) and not _is_wall_destroyed(cell):
+			var rock_id = wall_tiles.get(cell, 0)
+			var rock = Global.rock_types.get(rock_id, Global.rock_types[0])
+			var damping = rock.get("damping", 0.03)
+			wall_stress[cell] = max(0.0, wall_stress[cell] - damping)
+	
+	# Проверка разрушения — порог тоже от породы
+	for cell in wall_stress.keys():
+		if _is_wall_destroyed(cell):
+			continue
+		update_resonance_indicator(cell)
+		var rock_id = wall_tiles.get(cell, 0)
+		var rock = Global.rock_types.get(rock_id, Global.rock_types[0])
+		var threshold = rock.get("stress_threshold", 1.0)
+		if wall_stress[cell] >= threshold:
+			var freq = wall_best_freq.get(cell, real_wall_frequencies.get(cell, 0))
+			destroyed_walls.append({"cell": cell, "frequency": freq, "accuracy": 1.0})
+			trigger_break_effect(cell)
 
 
-func compute_zone_geometry(cells: Array) -> Dictionary:
-	var min_x = cells[0].x
-	var max_x = cells[0].x
-	var min_y = cells[0].y
-	var max_y = cells[0].y
-	var sum_x = 0
-	var sum_y = 0
-	for cell in cells:
-		min_x = min(min_x, cell.x)
-		max_x = max(max_x, cell.x)
-		min_y = min(min_y, cell.y)
-		max_y = max(max_y, cell.y)
-		sum_x += cell.x
-		sum_y += cell.y
-	var center_px = Vector2(
-		(float(sum_x) / cells.size() + 0.5) * 64.0,
-		(float(sum_y) / cells.size() + 0.5) * 64.0
-	)
-	var extent_cells = max(max_x - min_x + 1, max_y - min_y + 1)
-	return {"center_px": center_px, "extent_cells": extent_cells}
-
-
-# Сравниваем с РЕАЛЬНОЙ частотой стены
-func zone_has_target(cells: Array, freq: float) -> bool:
-	for cell in cells:
-		if real_wall_frequencies.has(cell):
-			var real_freq = real_wall_frequencies[cell]
-			if abs(freq - real_freq) <= FREQ_TOLERANCE:
-				return true
+func _is_wall_destroyed(cell: Vector2i) -> bool:
+	for wall in destroyed_walls:
+		if wall.cell == cell:
+			return true
 	return false
 
 
-func try_destroy_walls_in_zone(cells: Array, freq: float) -> void:
-	for cell in cells:
-		if not real_wall_frequencies.has(cell):
-			continue
-		var real_freq = real_wall_frequencies[cell]
-		if abs(freq - real_freq) > FREQ_TOLERANCE:
-			continue
-		var already_destroyed = false
-		for wall in destroyed_walls:
-			if wall.cell == cell:
-				already_destroyed = true
-				break
-		if not already_destroyed:
-			destroyed_walls.append({
-				"cell": cell,
-				"frequency": freq,
-				"accuracy": 1.0
-			})
-
-
-func create_resonance_effect(center_px: Vector2, extent_cells: int, is_target: bool, resonance_level: int = 1):
+func make_resonance_sprite() -> Sprite2D:
 	var circle = Sprite2D.new()
 	circle.centered = true
-	circle.z_index = 22 if resonance_level < 2 else 23
+	circle.z_index = 22
 	var size = 56
 	var image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0, 0, 0, 0))
-	var color
-	if resonance_level >= 2:
-		color = Color(1, 0.1, 0.9, 0.95) if is_target else Color(1, 0, 0.2, 0.75)
-	else:
-		color = Color(1, 1, 0, 0.9) if is_target else Color(1, 0.5, 0, 0.7)
+	
 	for x in range(size):
 		for y in range(size):
-			var dx = x - size/2
-			var dy = y - size/2
-			var dist = sqrt(dx*dx + dy*dy)
-			if dist < size/2:
-				var alpha = 1.0 - (dist / (size/2))
-				image.set_pixel(x, y, Color(color.r, color.g, color.b, color.a * alpha))
+			var dx = x - size / 2
+			var dy = y - size / 2
+			var dist = sqrt(dx * dx + dy * dy)
+			if dist < size / 2:
+				var alpha = 1.0 - (dist / (size / 2))
+				image.set_pixel(x, y, Color(1, 1, 1, alpha))
+	
 	for x in range(size):
 		for y in range(size):
-			var dx = x - size/2
-			var dy = y - size/2
-			var dist = sqrt(dx*dx + dy*dy)
-			if dist > size/2 - 3 and dist < size/2:
+			var dx = x - size / 2
+			var dy = y - size / 2
+			var dist = sqrt(dx * dx + dy * dy)
+			if dist > size / 2 - 3 and dist < size / 2:
 				image.set_pixel(x, y, Color(1, 1, 1, 0.9))
+	
 	var texture = ImageTexture.create_from_image(image)
 	circle.texture = texture
-	circle.position = center_px
-	add_child(circle)
-	var target_diameter_px = max(extent_cells * 64.0 * 1.25, 90.0)
-	var max_scale = target_diameter_px / float(size)
-	var effect_data = {
-		"circle": circle,
-		"max_scale": max_scale,
-		"timer": 0.0,
-		"max_timer": 1.25,
-		"is_target": is_target
-	}
-	resonance_effects.append(effect_data)
-	animate_resonance_effect(effect_data)
+	return circle
 
 
-func animate_resonance_effect(effect_data: Dictionary):
-	var circle = effect_data.circle
-	var max_scale = effect_data.max_scale
-	var start_scale = max_scale * 0.3
-	var grow_duration = 0.25
-	var hold_duration = 0.6
-	var fade_duration = 0.4
+func update_resonance_indicator(cell: Vector2i) -> void:
+	var stress = clamp(wall_stress.get(cell, 0.0), 0.0, 1.0)
+	
+	if not wall_indicators.has(cell):
+		if stress < 0.05:
+			return  # пока почти ничего не накопилось - индикатор ещё не нужен
+		var sprite = make_resonance_sprite()
+		sprite.position = cell * 64 + Vector2i(32, 32)
+		sprite.scale = Vector2.ONE * 0.3
+		add_child(sprite)
+		wall_indicators[cell] = sprite
+	
+	var sprite = wall_indicators[cell]
+	if not is_instance_valid(sprite):
+		wall_indicators.erase(cell)
+		return
+	
+	# Растёт и "созревает" по мере накопления напряжения: от тускло-жёлтого
+	# (только начали раскачивать) до яркого зелёного (почти разрушение)
+	sprite.scale = Vector2.ONE * lerp(0.3, 1.0, stress)
+	sprite.modulate = Color(1.0 - stress * 0.5, 0.85 + stress * 0.15, 0.25 + stress * 0.35, 0.3 + stress * 0.6)
+
+
+func trigger_break_effect(cell: Vector2i) -> void:
+	var sprite = wall_indicators.get(cell, null)
+	if sprite == null or not is_instance_valid(sprite):
+		sprite = make_resonance_sprite()
+		sprite.position = cell * 64 + Vector2i(32, 32)
+		add_child(sprite)
+	wall_indicators.erase(cell)
+	
+	sprite.modulate = Color(0.5, 1.0, 0.5, 1.0)
+	
 	var tween = create_tween()
-	effect_data["tween"] = tween
+	tween.set_parallel(true)
+	var effect_data = {"sprite": sprite, "tween": tween}
+	break_effects.append(effect_data)
+	
 	tween.tween_method(
 		func(scale):
-			if is_instance_valid(circle):
-				circle.scale = Vector2(scale, scale),
-		start_scale, max_scale, grow_duration
+			if is_instance_valid(sprite):
+				sprite.scale = Vector2(scale, scale),
+		sprite.scale.x, 2.0, 0.3
 	)
-	tween.tween_interval(hold_duration)
 	tween.tween_method(
 		func(alpha):
-			if is_instance_valid(circle):
-				circle.modulate.a = alpha,
-		1.0, 0.0, fade_duration
+			if is_instance_valid(sprite):
+				sprite.modulate.a = alpha,
+		1.0, 0.0, 0.35
 	)
-	tween.tween_callback(func():
-		if is_instance_valid(circle):
-			circle.queue_free()
-		var idx = resonance_effects.find(effect_data)
+	tween.chain().tween_callback(func():
+		if is_instance_valid(sprite):
+			sprite.queue_free()
+		var idx = break_effects.find(effect_data)
 		if idx != -1:
-			resonance_effects.remove_at(idx)
+			break_effects.remove_at(idx)
 	)
 
 
@@ -388,14 +352,23 @@ func clear_visuals():
 		if is_instance_valid(wave_data.polygon):
 			wave_data.polygon.queue_free()
 	wave_polygons.clear()
-	for effect in resonance_effects:
+	
+	for cell in wall_indicators:
+		var sprite = wall_indicators[cell]
+		if is_instance_valid(sprite):
+			sprite.queue_free()
+	wall_indicators.clear()
+	
+	for effect in break_effects:
 		if effect.has("tween") and effect.tween:
 			effect.tween.kill()
-		if is_instance_valid(effect.circle):
-			effect.circle.queue_free()
-	resonance_effects.clear()
+		if is_instance_valid(effect.sprite):
+			effect.sprite.queue_free()
+	break_effects.clear()
+	
 	for marker in intersection_points:
 		if is_instance_valid(marker):
 			marker.queue_free()
 	intersection_points.clear()
+	
 	queue_free()
